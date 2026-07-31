@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Loader2, MailCheck } from "lucide-react";
+import { toast } from "sonner";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
 
 const title = "Reset password — VoiceQuote AI";
-const description = "Recover access to your VoiceQuote AI account with a secure password reset link.";
+const description = "Request a secure link to reset your VoiceQuote AI password.";
 
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({
@@ -27,14 +29,22 @@ function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
-  // Placeholder reset flow — connect to your authentication provider here.
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const email = String(new FormData(event.currentTarget).get("email") ?? "").trim();
+    if (!email) return;
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setSent(true);
-    }, 700);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setSent(true);
   };
 
   return (
@@ -62,7 +72,14 @@ function ForgotPasswordPage() {
         <form className="space-y-4" onSubmit={submit}>
           <div className="space-y-2">
             <Label htmlFor="email">Work email</Label>
-            <Input id="email" type="email" required placeholder="priya@company.com" autoComplete="email" />
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              required
+              placeholder="priya@company.com"
+              autoComplete="email"
+            />
           </div>
           <Button type="submit" className="w-full rounded-full" size="lg" disabled={loading}>
             {loading && <Loader2 className="size-4 animate-spin" />} Send reset link
