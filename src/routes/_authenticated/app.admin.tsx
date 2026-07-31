@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { inr, quotations } from "@/lib/mock-data";
 
-export const Route = createFileRoute("/app/admin")({
+export const Route = createFileRoute("/_authenticated/app/admin")({
   head: () => ({
     meta: [
       { title: "Admin Panel — VoiceQuote AI" },

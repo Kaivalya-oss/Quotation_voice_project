@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { useTheme } from "@/hooks/use-theme";
 
-export const Route = createFileRoute("/app/settings")({
+export const Route = createFileRoute("/_authenticated/app/settings")({
   head: () => ({
     meta: [
       { title: "Settings — VoiceQuote AI" },
