@@ -15,7 +15,7 @@ import {
 import { customers, inr, quotations } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/app/customers")({
+export const Route = createFileRoute("/_authenticated/app/customers")({
   head: () => ({
     meta: [
       { title: "Customers — VoiceQuote AI" },
