@@ -86,8 +86,7 @@ function QuotationsPage() {
 
   const listQuery = useQuery({
     queryKey: ["quotations", { query, status, page }],
-    queryFn: () =>
-      listQuotations({ search: query || undefined, status, page, pageSize: PAGE_SIZE }),
+    queryFn: () => listQuotations({ search: query, status, page, pageSize: PAGE_SIZE }),
   });
 
   const rows = listQuery.data?.rows ?? [];

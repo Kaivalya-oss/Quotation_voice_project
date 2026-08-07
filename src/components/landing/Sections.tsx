@@ -9,7 +9,6 @@ import {
   MessageCircle,
   Mic,
   PlayCircle,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,9 +21,6 @@ export function Hero() {
       <div className="pointer-events-none absolute -top-40 left-1/2 size-[46rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
       <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:py-28">
         <div className="animate-fade-up">
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-            <Sparkles className="size-3.5" /> AI voice quotations for sales teams
-          </span>
           <h1 className="mt-6 text-4xl font-semibold leading-[1.08] sm:text-5xl lg:text-6xl">
             Create Professional Quotations Using{" "}
             <span className="gradient-text">Just Your Voice</span>
@@ -76,10 +72,10 @@ export function Hero() {
 
 const features = [
   { icon: Mic, title: "Voice-to-Quotation", text: "Convert natural speech into structured quotation details in seconds." },
-  { icon: Brain, title: "AI Data Extraction", text: "Customer, products, quantity, price, GST, discount and delivery — extracted automatically." },
+  { icon: Brain, title: "AI Data Extraction", text: "Customer, products, quantity, price, GST, discount and delivery, extracted automatically." },
   { icon: FileText, title: "Automatic PDF Generation", text: "Generate branded, professional quotation PDFs instantly." },
   { icon: MessageCircle, title: "WhatsApp Integration", text: "Send quotations straight to your customer's WhatsApp." },
-  { icon: Database, title: "Automatic Database Entry", text: "Every quotation is stored — no manual data entry required." },
+  { icon: Database, title: "Automatic Database Entry", text: "Every quotation is stored, with no manual data entry required." },
   { icon: BarChart3, title: "Dashboard & Analytics", text: "Track quotations, sales performance and customer history." },
   { icon: Lock, title: "Secure Authentication", text: "Role-based access for Admins and Sales Executives." },
 ];
@@ -183,54 +179,6 @@ export function Benefits() {
   );
 }
 
-const testimonials = [
-  {
-    quote:
-      "Our field team dictates quotations from the customer's factory floor. What used to take an evening of typing now lands on WhatsApp before we leave the gate.",
-    name: "Priya Nair",
-    role: "National Sales Head, Aster Industries",
-  },
-  {
-    quote:
-      "The AI extraction handles GST slabs and discounts better than our old template. Errors in pricing dropped to almost nothing.",
-    name: "Arjun Rao",
-    role: "Regional Manager, Vertex Logistics",
-  },
-  {
-    quote:
-      "Every quotation is searchable, every customer has history, and the analytics finally tell me which executive is converting.",
-    name: "Kabir Shah",
-    role: "Director, Northline Foods",
-  },
-];
-
-export function Testimonials() {
-  return (
-    <section id="testimonials" className="scroll-mt-20 border-t border-border/60 bg-card/40">
-      <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
-        <h2 className="max-w-2xl text-3xl font-semibold sm:text-4xl">Trusted by enterprise sales teams</h2>
-        <div className="mt-12 grid gap-5 lg:grid-cols-3">
-          {testimonials.map((t) => (
-            <Card key={t.name} className="hover-lift rounded-2xl border-border/70">
-              <CardContent className="flex h-full flex-col p-7">
-                <p className="text-sm leading-relaxed text-muted-foreground">“{t.quote}”</p>
-                <div className="mt-6 flex items-center gap-3 border-t border-border pt-5">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 font-semibold text-primary">
-                    {t.name.charAt(0)}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">{t.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{t.role}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
 
 export function CtaBand() {
   return (

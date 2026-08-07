@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * VoiceQuote AI design system — modern blue/white AI SaaS.
+ * VoiceQuote AI design system: modern blue/white AI SaaS.
  * All colors are oklch semantic tokens. Never hardcode colors in components.
  */
 
