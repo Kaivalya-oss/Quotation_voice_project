@@ -8,7 +8,6 @@ const links = [
   { label: "Features", href: "#features" },
   { label: "How it works", href: "#workflow" },
   { label: "Results", href: "#benefits" },
-  { label: "Customers", href: "#testimonials" },
 ];
 
 export function SiteNav() {
