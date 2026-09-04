@@ -26,7 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { inr, monthlyQuotations, quotations, recentActivity } from "@/lib/mock-data";
 
-export const Route = createFileRoute("/_authenticated/app/")({
+export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
       { title: "Dashboard — VoiceQuote AI" },
@@ -60,7 +60,7 @@ function Dashboard() {
         description="Here's what's happening across your quotation pipeline today."
         actions={
           <Button asChild className="rounded-full shrink-0">
-            <Link to="/app/new-quotation">
+            <Link to="/quotations/new">
               <Mic className="size-4" /> New Quotation
             </Link>
           </Button>
@@ -156,7 +156,7 @@ function Dashboard() {
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle className="text-base">Latest quotations</CardTitle>
             <Button asChild variant="ghost" size="sm">
-              <Link to="/app/quotations">
+              <Link to="/quotations">
                 View all <ArrowUpRight className="size-4" />
               </Link>
             </Button>

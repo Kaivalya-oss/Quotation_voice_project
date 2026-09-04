@@ -47,7 +47,7 @@ import { QUOTATION_STATUSES, type QuotationStatus } from "@/lib/validators";
 
 const searchSchema = z.object({ q: z.string().optional() });
 
-export const Route = createFileRoute("/_authenticated/app/quotations")({
+export const Route = createFileRoute("/_authenticated/quotations")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [

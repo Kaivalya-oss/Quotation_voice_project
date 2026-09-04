@@ -35,9 +35,9 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/app", replace: true });
-    });
+    if (localStorage.getItem("mock_auth") === "true") {
+      navigate({ to: "/dashboard", replace: true });
+    }
   }, [navigate]);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -53,21 +53,13 @@ function LoginPage() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword(parsed.data);
+    // Mock login delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
     setLoading(false);
 
-    if (error) {
-      toast.error(
-        error.message.toLowerCase().includes("invalid")
-          ? "Incorrect email or password."
-          : error.message,
-      );
-      return;
-    }
-
-    await queryClient.invalidateQueries();
+    localStorage.setItem("mock_auth", "true");
     toast.success("Welcome back");
-    navigate({ to: "/app", replace: true });
+    navigate({ to: "/dashboard", replace: true });
   };
 
   return (

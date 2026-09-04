@@ -9,6 +9,7 @@ import {
   Menu,
   Mic,
   Moon,
+  MapPin,
   Search,
   Settings,
   ShieldCheck,
@@ -42,13 +43,17 @@ import {
 import { cn } from "@/lib/utils";
 
 const nav = [
-  { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { to: "/app/new-quotation", label: "New Quotation", icon: Mic },
-  { to: "/app/quotations", label: "Quotations", icon: FileText },
-  { to: "/app/customers", label: "Customers", icon: Users },
-  { to: "/app/analytics", label: "Analytics", icon: PieChart },
-  { to: "/app/admin", label: "Admin Panel", icon: ShieldCheck },
-  { to: "/app/settings", label: "Settings", icon: Settings },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { to: "/customers", label: "Customers", icon: Users },
+  { to: "/leads", label: "Leads", icon: FileText },
+  { to: "/vehicles", label: "Vehicles", icon: MapPin },
+  { to: "/inventory", label: "Inventory", icon: ShieldCheck },
+  { to: "/quotations", label: "Quotations", icon: FileText },
+  { to: "/finance", label: "Finance/EMI", icon: FileText },
+  { to: "/test-rides", label: "Test Rides", icon: MapPin },
+  { to: "/follow-ups", label: "Follow-ups", icon: Bell },
+  { to: "/reports", label: "Reports", icon: PieChart },
+  { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
@@ -170,7 +175,7 @@ export function AppShell() {
               onSubmit={(event) => {
                 event.preventDefault();
                 if (!search.trim()) return;
-                navigate({ to: "/app/quotations", search: { q: search.trim() } });
+                navigate({ to: "/quotations", search: { q: search.trim() } });
               }}
             >
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -252,7 +257,7 @@ export function AppShell() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/app/settings">Settings</Link>
+                    <Link to="/settings">Settings</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => void signOut()}>Logout</DropdownMenuItem>
                 </DropdownMenuContent>
@@ -262,8 +267,8 @@ export function AppShell() {
         </header>
 
         <div className="flex items-center gap-1.5 px-4 pt-5 text-xs text-muted-foreground sm:px-6">
-          <Link to="/app" className="hover:text-primary">
-            VoiceQuote
+          <Link to="/dashboard" className="hover:text-primary">
+            QuoteSpeak
           </Link>
           <ChevronRight className="size-3" />
           <span className="text-foreground">{crumb}</span>

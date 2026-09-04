@@ -15,15 +15,19 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedFinanceRouteImport } from './routes/_authenticated/finance'
+import { Route as AuthenticatedFollowUpsRouteImport } from './routes/_authenticated/follow-ups'
+import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated/inventory'
+import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
+import { Route as AuthenticatedQuotationsRouteImport } from './routes/_authenticated/quotations'
+import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedTestRidesRouteImport } from './routes/_authenticated/test-rides'
+import { Route as AuthenticatedVehiclesRouteImport } from './routes/_authenticated/vehicles'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
-import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
-import { Route as AuthenticatedAppAdminRouteImport } from './routes/_authenticated/app.admin'
-import { Route as AuthenticatedAppAnalyticsRouteImport } from './routes/_authenticated/app.analytics'
-import { Route as AuthenticatedAppCustomersRouteImport } from './routes/_authenticated/app.customers'
-import { Route as AuthenticatedAppNewQuotationRouteImport } from './routes/_authenticated/app.new-quotation'
-import { Route as AuthenticatedAppQuotationsRouteImport } from './routes/_authenticated/app.quotations'
-import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
+import { Route as AuthenticatedQuotationsNewRouteImport } from './routes/_authenticated/quotations.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -54,9 +58,59 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
-  id: '/app',
-  path: '/app',
+const AuthenticatedCustomersRoute = AuthenticatedCustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedFinanceRoute = AuthenticatedFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedFollowUpsRoute = AuthenticatedFollowUpsRouteImport.update({
+  id: '/follow-ups',
+  path: '/follow-ups',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedInventoryRoute = AuthenticatedInventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedQuotationsRoute = AuthenticatedQuotationsRouteImport.update({
+  id: '/quotations',
+  path: '/quotations',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTestRidesRoute = AuthenticatedTestRidesRouteImport.update({
+  id: '/test-rides',
+  path: '/test-rides',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedVehiclesRoute = AuthenticatedVehiclesRouteImport.update({
+  id: '/vehicles',
+  path: '/vehicles',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
@@ -64,45 +118,11 @@ const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   path: '/api/transcribe',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppAdminRoute = AuthenticatedAppAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppAnalyticsRoute =
-  AuthenticatedAppAnalyticsRouteImport.update({
-    id: '/analytics',
-    path: '/analytics',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedAppCustomersRoute =
-  AuthenticatedAppCustomersRouteImport.update({
-    id: '/customers',
-    path: '/customers',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedAppNewQuotationRoute =
-  AuthenticatedAppNewQuotationRouteImport.update({
-    id: '/new-quotation',
-    path: '/new-quotation',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedAppQuotationsRoute =
-  AuthenticatedAppQuotationsRouteImport.update({
-    id: '/quotations',
-    path: '/quotations',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedAppSettingsRoute =
-  AuthenticatedAppSettingsRouteImport.update({
-    id: '/settings',
-    path: '/settings',
-    getParentRoute: () => AuthenticatedAppRoute,
+const AuthenticatedQuotationsNewRoute =
+  AuthenticatedQuotationsNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AuthenticatedQuotationsRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -111,15 +131,19 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/app': typeof AuthenticatedAppRouteWithChildren
+  '/customers': typeof AuthenticatedCustomersRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/finance': typeof AuthenticatedFinanceRoute
+  '/follow-ups': typeof AuthenticatedFollowUpsRoute
+  '/inventory': typeof AuthenticatedInventoryRoute
+  '/leads': typeof AuthenticatedLeadsRoute
+  '/quotations': typeof AuthenticatedQuotationsRouteWithChildren
+  '/reports': typeof AuthenticatedReportsRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/test-rides': typeof AuthenticatedTestRidesRoute
+  '/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
-  '/app/admin': typeof AuthenticatedAppAdminRoute
-  '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
-  '/app/customers': typeof AuthenticatedAppCustomersRoute
-  '/app/new-quotation': typeof AuthenticatedAppNewQuotationRoute
-  '/app/quotations': typeof AuthenticatedAppQuotationsRoute
-  '/app/settings': typeof AuthenticatedAppSettingsRoute
-  '/app/': typeof AuthenticatedAppIndexRoute
+  '/quotations/new': typeof AuthenticatedQuotationsNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -127,14 +151,19 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/customers': typeof AuthenticatedCustomersRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/finance': typeof AuthenticatedFinanceRoute
+  '/follow-ups': typeof AuthenticatedFollowUpsRoute
+  '/inventory': typeof AuthenticatedInventoryRoute
+  '/leads': typeof AuthenticatedLeadsRoute
+  '/quotations': typeof AuthenticatedQuotationsRouteWithChildren
+  '/reports': typeof AuthenticatedReportsRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/test-rides': typeof AuthenticatedTestRidesRoute
+  '/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
-  '/app/admin': typeof AuthenticatedAppAdminRoute
-  '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
-  '/app/customers': typeof AuthenticatedAppCustomersRoute
-  '/app/new-quotation': typeof AuthenticatedAppNewQuotationRoute
-  '/app/quotations': typeof AuthenticatedAppQuotationsRoute
-  '/app/settings': typeof AuthenticatedAppSettingsRoute
-  '/app': typeof AuthenticatedAppIndexRoute
+  '/quotations/new': typeof AuthenticatedQuotationsNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -144,15 +173,19 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
+  '/_authenticated/customers': typeof AuthenticatedCustomersRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/finance': typeof AuthenticatedFinanceRoute
+  '/_authenticated/follow-ups': typeof AuthenticatedFollowUpsRoute
+  '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
+  '/_authenticated/leads': typeof AuthenticatedLeadsRoute
+  '/_authenticated/quotations': typeof AuthenticatedQuotationsRouteWithChildren
+  '/_authenticated/reports': typeof AuthenticatedReportsRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/test-rides': typeof AuthenticatedTestRidesRoute
+  '/_authenticated/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
-  '/_authenticated/app/admin': typeof AuthenticatedAppAdminRoute
-  '/_authenticated/app/analytics': typeof AuthenticatedAppAnalyticsRoute
-  '/_authenticated/app/customers': typeof AuthenticatedAppCustomersRoute
-  '/_authenticated/app/new-quotation': typeof AuthenticatedAppNewQuotationRoute
-  '/_authenticated/app/quotations': typeof AuthenticatedAppQuotationsRoute
-  '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRoute
-  '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/_authenticated/quotations/new': typeof AuthenticatedQuotationsNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -162,15 +195,19 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/reset-password'
-    | '/app'
+    | '/customers'
+    | '/dashboard'
+    | '/finance'
+    | '/follow-ups'
+    | '/inventory'
+    | '/leads'
+    | '/quotations'
+    | '/reports'
+    | '/settings'
+    | '/test-rides'
+    | '/vehicles'
     | '/api/transcribe'
-    | '/app/admin'
-    | '/app/analytics'
-    | '/app/customers'
-    | '/app/new-quotation'
-    | '/app/quotations'
-    | '/app/settings'
-    | '/app/'
+    | '/quotations/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -178,14 +215,19 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/reset-password'
+    | '/customers'
+    | '/dashboard'
+    | '/finance'
+    | '/follow-ups'
+    | '/inventory'
+    | '/leads'
+    | '/quotations'
+    | '/reports'
+    | '/settings'
+    | '/test-rides'
+    | '/vehicles'
     | '/api/transcribe'
-    | '/app/admin'
-    | '/app/analytics'
-    | '/app/customers'
-    | '/app/new-quotation'
-    | '/app/quotations'
-    | '/app/settings'
-    | '/app'
+    | '/quotations/new'
   id:
     | '__root__'
     | '/'
@@ -194,15 +236,19 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/reset-password'
-    | '/_authenticated/app'
+    | '/_authenticated/customers'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/finance'
+    | '/_authenticated/follow-ups'
+    | '/_authenticated/inventory'
+    | '/_authenticated/leads'
+    | '/_authenticated/quotations'
+    | '/_authenticated/reports'
+    | '/_authenticated/settings'
+    | '/_authenticated/test-rides'
+    | '/_authenticated/vehicles'
     | '/api/transcribe'
-    | '/_authenticated/app/admin'
-    | '/_authenticated/app/analytics'
-    | '/_authenticated/app/customers'
-    | '/_authenticated/app/new-quotation'
-    | '/_authenticated/app/quotations'
-    | '/_authenticated/app/settings'
-    | '/_authenticated/app/'
+    | '/_authenticated/quotations/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -259,11 +305,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/app': {
-      id: '/_authenticated/app'
-      path: '/app'
-      fullPath: '/app'
-      preLoaderRoute: typeof AuthenticatedAppRouteImport
+    '/_authenticated/customers': {
+      id: '/_authenticated/customers'
+      path: '/customers'
+      fullPath: '/customers'
+      preLoaderRoute: typeof AuthenticatedCustomersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/finance': {
+      id: '/_authenticated/finance'
+      path: '/finance'
+      fullPath: '/finance'
+      preLoaderRoute: typeof AuthenticatedFinanceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/follow-ups': {
+      id: '/_authenticated/follow-ups'
+      path: '/follow-ups'
+      fullPath: '/follow-ups'
+      preLoaderRoute: typeof AuthenticatedFollowUpsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/inventory': {
+      id: '/_authenticated/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof AuthenticatedInventoryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/leads': {
+      id: '/_authenticated/leads'
+      path: '/leads'
+      fullPath: '/leads'
+      preLoaderRoute: typeof AuthenticatedLeadsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/quotations': {
+      id: '/_authenticated/quotations'
+      path: '/quotations'
+      fullPath: '/quotations'
+      preLoaderRoute: typeof AuthenticatedQuotationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reports': {
+      id: '/_authenticated/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AuthenticatedReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/test-rides': {
+      id: '/_authenticated/test-rides'
+      path: '/test-rides'
+      fullPath: '/test-rides'
+      preLoaderRoute: typeof AuthenticatedTestRidesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/vehicles': {
+      id: '/_authenticated/vehicles'
+      path: '/vehicles'
+      fullPath: '/vehicles'
+      preLoaderRoute: typeof AuthenticatedVehiclesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/transcribe': {
@@ -273,87 +389,56 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTranscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/app/': {
-      id: '/_authenticated/app/'
-      path: '/'
-      fullPath: '/app/'
-      preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/admin': {
-      id: '/_authenticated/app/admin'
-      path: '/admin'
-      fullPath: '/app/admin'
-      preLoaderRoute: typeof AuthenticatedAppAdminRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/analytics': {
-      id: '/_authenticated/app/analytics'
-      path: '/analytics'
-      fullPath: '/app/analytics'
-      preLoaderRoute: typeof AuthenticatedAppAnalyticsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/customers': {
-      id: '/_authenticated/app/customers'
-      path: '/customers'
-      fullPath: '/app/customers'
-      preLoaderRoute: typeof AuthenticatedAppCustomersRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/new-quotation': {
-      id: '/_authenticated/app/new-quotation'
-      path: '/new-quotation'
-      fullPath: '/app/new-quotation'
-      preLoaderRoute: typeof AuthenticatedAppNewQuotationRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/quotations': {
-      id: '/_authenticated/app/quotations'
-      path: '/quotations'
-      fullPath: '/app/quotations'
-      preLoaderRoute: typeof AuthenticatedAppQuotationsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/settings': {
-      id: '/_authenticated/app/settings'
-      path: '/settings'
-      fullPath: '/app/settings'
-      preLoaderRoute: typeof AuthenticatedAppSettingsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+    '/_authenticated/quotations/new': {
+      id: '/_authenticated/quotations/new'
+      path: '/new'
+      fullPath: '/quotations/new'
+      preLoaderRoute: typeof AuthenticatedQuotationsNewRouteImport
+      parentRoute: typeof AuthenticatedQuotationsRoute
     }
   }
 }
 
-interface AuthenticatedAppRouteChildren {
-  AuthenticatedAppAdminRoute: typeof AuthenticatedAppAdminRoute
-  AuthenticatedAppAnalyticsRoute: typeof AuthenticatedAppAnalyticsRoute
-  AuthenticatedAppCustomersRoute: typeof AuthenticatedAppCustomersRoute
-  AuthenticatedAppNewQuotationRoute: typeof AuthenticatedAppNewQuotationRoute
-  AuthenticatedAppQuotationsRoute: typeof AuthenticatedAppQuotationsRoute
-  AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
-  AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
+interface AuthenticatedQuotationsRouteChildren {
+  AuthenticatedQuotationsNewRoute: typeof AuthenticatedQuotationsNewRoute
 }
 
-const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
-  AuthenticatedAppAdminRoute: AuthenticatedAppAdminRoute,
-  AuthenticatedAppAnalyticsRoute: AuthenticatedAppAnalyticsRoute,
-  AuthenticatedAppCustomersRoute: AuthenticatedAppCustomersRoute,
-  AuthenticatedAppNewQuotationRoute: AuthenticatedAppNewQuotationRoute,
-  AuthenticatedAppQuotationsRoute: AuthenticatedAppQuotationsRoute,
-  AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
-  AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
-}
+const AuthenticatedQuotationsRouteChildren: AuthenticatedQuotationsRouteChildren =
+  {
+    AuthenticatedQuotationsNewRoute: AuthenticatedQuotationsNewRoute,
+  }
 
-const AuthenticatedAppRouteWithChildren =
-  AuthenticatedAppRoute._addFileChildren(AuthenticatedAppRouteChildren)
+const AuthenticatedQuotationsRouteWithChildren =
+  AuthenticatedQuotationsRoute._addFileChildren(
+    AuthenticatedQuotationsRouteChildren,
+  )
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
+  AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRoute
+  AuthenticatedFollowUpsRoute: typeof AuthenticatedFollowUpsRoute
+  AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
+  AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
+  AuthenticatedQuotationsRoute: typeof AuthenticatedQuotationsRouteWithChildren
+  AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedTestRidesRoute: typeof AuthenticatedTestRidesRoute
+  AuthenticatedVehiclesRoute: typeof AuthenticatedVehiclesRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
+  AuthenticatedCustomersRoute: AuthenticatedCustomersRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedFinanceRoute: AuthenticatedFinanceRoute,
+  AuthenticatedFollowUpsRoute: AuthenticatedFollowUpsRoute,
+  AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
+  AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
+  AuthenticatedQuotationsRoute: AuthenticatedQuotationsRouteWithChildren,
+  AuthenticatedReportsRoute: AuthenticatedReportsRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedTestRidesRoute: AuthenticatedTestRidesRoute,
+  AuthenticatedVehiclesRoute: AuthenticatedVehiclesRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -371,3 +456,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
