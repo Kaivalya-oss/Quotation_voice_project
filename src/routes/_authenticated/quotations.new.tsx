@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { PageHeader } from "@/components/app/AppShell";
+import { buildQuotationPdf, downloadBlob } from "@/lib/pdf";
+import { buildWhatsAppMessage, sendWhatsApp } from "@/lib/whatsapp";
 
 export const Route = createFileRoute("/_authenticated/quotations/new")({
   head: () => ({ meta: [{ title: "New Quotation — QuoteSpeak" }] }),
@@ -41,9 +43,66 @@ function NewQuotationPage() {
   const handleNext = () => setStep((s) => Math.min(s + 1, 5));
   const handlePrev = () => setStep((s) => Math.max(s - 1, 1));
 
-  const handleSave = () => {
-    toast.success("Quotation generated successfully!");
-    navigate({ to: "/quotations" });
+  const handleSave = async () => {
+    const customer = customers.find(c => c.id === selectedCustomer)!;
+    const qtNumber = `QT-${Math.floor(1000 + Math.random() * 9000)}`;
+    const validUntil = new Date();
+    validUntil.setDate(validUntil.getDate() + 7);
+
+    try {
+      const blob = await buildQuotationPdf({
+        quotationNumber: qtNumber,
+        createdAt: new Date().toISOString(),
+        validUntil: validUntil.toISOString(),
+        dealership: {
+          name: "QuoteSpeak Dealership",
+          phone: "+91 800 555 1234",
+          address: "123 Dealership Road, Tech City",
+        },
+        customer: { name: customer.name, phone: customer.mobile, city: customer.city },
+        vehicle: { brand: vehicle.brand, model: vehicle.model, variant: vehicle.variant, color: vehicle.color },
+        accessories: [],
+        pricing: {
+          exShowroom,
+          insurance,
+          rto,
+          accessoriesTotal: accessories,
+          gstAmount: 0,
+          discount,
+          totalAmount: onRoadPrice,
+        },
+        finance: {
+          downPayment,
+          loanAmount,
+          interestRate,
+          tenureMonths: tenure,
+          emi,
+          totalInterest: (emi * tenure) - loanAmount,
+        },
+        executive: "Sales Executive",
+        terms: "1. Quotation valid for 7 days.\n2. Prices subject to change without prior notice.",
+        bookingLink: "http://localhost:8080",
+      });
+
+      downloadBlob(blob, `${qtNumber}.pdf`);
+
+      const message = buildWhatsAppMessage({
+        customerName: customer.name,
+        quotationNumber: qtNumber,
+        vehicle: `${vehicle.brand} ${vehicle.model} ${vehicle.variant}`,
+        onRoadPrice,
+        emi,
+        tenureMonths: tenure,
+        dealershipName: "QuoteSpeak Dealership",
+        validUntil: validUntil.toISOString(),
+      });
+
+      sendWhatsApp(customer.mobile, message);
+      toast.success("Quotation generated & WhatsApp sent successfully!");
+      navigate({ to: "/quotations" });
+    } catch (err) {
+      toast.error("Failed to generate quotation");
+    }
   };
 
   return (

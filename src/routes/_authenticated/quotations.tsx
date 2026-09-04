@@ -225,7 +225,7 @@ function QuotationsPage() {
         description={`${count} quotation${count === 1 ? "" : "s"} found`}
         actions={
           <Button asChild className="shrink-0 rounded-full">
-            <Link to="/app/new-quotation">
+            <Link to="/quotations/new">
               <Mic className="size-4" /> New
             </Link>
           </Button>
