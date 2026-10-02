@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/auth/AuthShell";
@@ -13,8 +14,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
 import { APP_ROLES, ROLE_LABEL, signUpSchema, type AppRole } from "@/lib/validators";
+import { api, ApiError, tokenStorage } from "@/lib/api";
+import type { TokenResponse, UserResponse } from "@/lib/auth-types";
+import { authQueryKey } from "@/hooks/use-auth";
 
 const title = "Create account — VoiceQuote AI";
 const description =
@@ -40,9 +43,10 @@ export const Route = createFileRoute("/register")({
 
 function RegisterPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<AppRole>("sales_executive");
-  const [checkEmail, setCheckEmail] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -59,36 +63,47 @@ function RegisterPage() {
     }
 
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: parsed.data.email,
-      password: parsed.data.password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: {
-          name: parsed.data.name,
+    try {
+      const response = await api.post<UserResponse | TokenResponse>(
+        "/api/v1/auth/register",
+        {
+          email: parsed.data.email,
+          password: parsed.data.password,
+          full_name: parsed.data.name,
           phone: parsed.data.phone ?? null,
-          requested_role: role,
+          role_name: role.toUpperCase(),
         },
-      },
-    });
-    setLoading(false);
-
-    if (error) {
-      toast.error(
-        error.message.toLowerCase().includes("already registered")
-          ? "That email already has an account — sign in instead."
-          : error.message,
+        { skipAuth: true },
       );
-      return;
-    }
 
-    if (!data.session) {
-      setCheckEmail(true);
-      return;
-    }
+      // If backend returns tokens, set session and navigate
+      if ("access_token" in response && response.access_token) {
+        tokenStorage.setSession(response);
+        await queryClient.invalidateQueries({ queryKey: authQueryKey });
+        toast.success("Workspace ready");
+        navigate({ to: "/dashboard", replace: true });
+        return;
+      }
 
-    toast.success("Workspace ready");
-    navigate({ to: "/app", replace: true });
+      // Backend returns UserResponse on registration (201 Created)
+      toast.success("Account created successfully!");
+      setRegistered(true);
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        if (
+          err.code === "USER_ALREADY_EXISTS" ||
+          err.message.toLowerCase().includes("already exists")
+        ) {
+          toast.error("That email already has an account — sign in instead.");
+        } else {
+          toast.error(err.message);
+        }
+      } else {
+        toast.error("Failed to create account. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -104,15 +119,14 @@ function RegisterPage() {
         </>
       }
     >
-      {checkEmail ? (
+      {registered ? (
         <div className="rounded-2xl border border-success/30 bg-success/10 p-5 text-sm">
-          <p className="font-medium">Confirm your email</p>
+          <p className="font-medium text-foreground">Account created successfully</p>
           <p className="mt-1 text-muted-foreground">
-            We sent a confirmation link to your inbox. Click it to activate your account, then sign
-            in.
+            Your workspace account is ready. Please sign in with your credentials to get started.
           </p>
-          <Button asChild variant="outline" className="mt-4 rounded-full">
-            <Link to="/login">Back to sign in</Link>
+          <Button asChild className="mt-4 rounded-full" size="lg">
+            <Link to="/login">Sign in now</Link>
           </Button>
         </div>
       ) : (

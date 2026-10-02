@@ -1,3 +1,9 @@
+/**
+ * REMAINING SUPABASE DEPENDENCY:
+ * The current FastAPI backend contract does not provide a forgot-password / password-reset endpoint.
+ * This route is functionally isolated and preserved using Supabase Auth until a corresponding
+ * FastAPI endpoint is implemented in a future phase.
+ */
 import { useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Loader2, MailCheck } from "lucide-react";

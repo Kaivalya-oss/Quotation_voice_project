@@ -1,6 +1,29 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import type { AppRole, LeadStage, QuotationStatus } from "@/lib/validators";
+import { api } from "@/lib/api";
+import type {
+  QuotationCreate,
+  QuotationResponse,
+  QuotationStatusUpdate,
+  PaginatedQuotations,
+  BackendQuotationStatus,
+} from "@/lib/quotation-types";
+import type {
+  CustomerCreate,
+  CustomerUpdate,
+  CustomerResponse,
+  PaginatedCustomers,
+} from "@/lib/customer-types";
+import type {
+  VariantCreate,
+  VariantUpdate,
+  VariantResponse,
+  BrandResponse,
+  ModelResponse,
+  AccessoryResponse,
+  PaginatedVehicles,
+} from "@/lib/vehicle-types";
 
 export type Customer = Database["public"]["Tables"]["customers"]["Row"];
 export type Vehicle = Database["public"]["Tables"]["vehicles"]["Row"];
@@ -60,33 +83,86 @@ export async function updateProfile(id: string, values: Partial<Profile>) {
   return unwrap(await supabase.from("profiles").update(values).eq("id", id).select().single());
 }
 
-/* ============ VEHICLES / INVENTORY ============ */
+/* ============ VEHICLES / CATALOG (FastAPI REST Backend) ============ */
 
-export async function listVehicles(opts: { search?: string; onlyInStock?: boolean } = {}) {
-  let q = supabase.from("vehicles").select("*").eq("is_active", true).order("brand");
-  if (opts.onlyInStock) q = q.gt("stock", 0);
-  if (opts.search) q = q.or(`brand.ilike.%${opts.search}%,model.ilike.%${opts.search}%`);
-  return unwrap(await q);
+export async function listVehicles(
+  opts: {
+    search?: string | undefined;
+    brandId?: number | undefined;
+    modelId?: number | undefined;
+    fuelType?: string | undefined;
+    status?: string | undefined;
+    minPrice?: number | undefined;
+    maxPrice?: number | undefined;
+    page?: number | undefined;
+    pageSize?: number | undefined;
+    onlyInStock?: boolean | undefined;
+  } = {},
+): Promise<PaginatedVehicles & { rows: VariantResponse[] }> {
+  const page = opts.page ?? 1;
+  const pageSize = opts.pageSize ?? 50;
+
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  params.set("page_size", String(pageSize));
+
+  if (opts.search?.trim()) params.set("search", opts.search.trim());
+  if (opts.brandId) params.set("brand_id", String(opts.brandId));
+  if (opts.modelId) params.set("model_id", String(opts.modelId));
+  if (opts.fuelType) params.set("fuel_type", opts.fuelType);
+  if (opts.status) params.set("status", opts.status);
+  if (opts.minPrice !== undefined) params.set("min_price", String(opts.minPrice));
+  if (opts.maxPrice !== undefined) params.set("max_price", String(opts.maxPrice));
+
+  const res = await api.get<PaginatedVehicles>(`/api/v1/vehicles?${params.toString()}`);
+  const items = res.items ?? [];
+  return {
+    items,
+    total: res.total ?? items.length,
+    page: res.page ?? page,
+    page_size: res.page_size ?? pageSize,
+    pages: res.pages ?? 1,
+    rows: items,
+  };
 }
 
-export async function upsertVehicle(values: Partial<Vehicle> & { id?: string }) {
+export async function getVehicle(id: number | string): Promise<VariantResponse> {
+  return await api.get<VariantResponse>(`/api/v1/vehicles/${id}`);
+}
+
+export async function createVehicle(values: VariantCreate): Promise<VariantResponse> {
+  return await api.post<VariantResponse>("/api/v1/vehicles", values);
+}
+
+export async function updateVehicle(
+  id: number | string,
+  values: VariantUpdate,
+): Promise<VariantResponse> {
+  return await api.put<VariantResponse>(`/api/v1/vehicles/${id}`, values);
+}
+
+export async function deleteVehicle(id: number | string): Promise<{ success: boolean; message: string }> {
+  return await api.delete<{ success: boolean; message: string }>(`/api/v1/vehicles/${id}`);
+}
+
+export async function upsertVehicle(values: Partial<VariantCreate> & { id?: number | string }) {
   if (values.id) {
-    return unwrap(
-      await supabase.from("vehicles").update(values).eq("id", values.id).select().single(),
-    );
+    return await updateVehicle(values.id, values as VariantUpdate);
   }
-  return unwrap(
-    await supabase
-      .from("vehicles")
-      .insert(values as Database["public"]["Tables"]["vehicles"]["Insert"])
-      .select()
-      .single(),
-  );
+  return await createVehicle(values as VariantCreate);
 }
 
-export async function deleteVehicle(id: string) {
-  const { error } = await supabase.from("vehicles").update({ is_active: false }).eq("id", id);
-  if (error) throw new Error(error.message);
+export async function listVehicleBrands(): Promise<BrandResponse[]> {
+  return await api.get<BrandResponse[]>("/api/v1/vehicles/catalog/brands");
+}
+
+export async function listVehicleModels(brandId?: number): Promise<ModelResponse[]> {
+  const path = brandId ? `/api/v1/vehicles/catalog/models?brand_id=${brandId}` : "/api/v1/vehicles/catalog/models";
+  return await api.get<ModelResponse[]>(path);
+}
+
+export async function listVehicleAccessories(): Promise<AccessoryResponse[]> {
+  return await api.get<AccessoryResponse[]>("/api/v1/vehicles/catalog/accessories");
 }
 
 export async function adjustStock(vehicleId: string, delta: number) {
@@ -162,136 +238,208 @@ export async function deleteOffer(id: string) {
   if (error) throw new Error(error.message);
 }
 
-/* ============ CUSTOMERS ============ */
+/* ============ CUSTOMERS (FastAPI REST Backend) ============ */
 
-export async function listCustomers(search?: string) {
-  let q = supabase.from("customers").select("*").order("created_at", { ascending: false });
-  if (search) q = q.or(`name.ilike.%${search}%,phone.ilike.%${search}%,city.ilike.%${search}%`);
-  return unwrap(await q);
-}
+export async function listCustomers(
+  opts: {
+    search?: string | undefined;
+    city?: string | undefined;
+    minBudget?: number | undefined;
+    maxBudget?: number | undefined;
+    sortBy?: ("id" | "full_name" | "budget" | "created_at") | undefined;
+    sortOrder?: ("asc" | "desc") | undefined;
+    page?: number | undefined;
+    pageSize?: number | undefined;
+  } | string = {},
+): Promise<PaginatedCustomers & { rows: CustomerResponse[] }> {
+  const options = typeof opts === "string" ? { search: opts } : opts;
+  const page = options.page ?? 1;
+  const pageSize = options.pageSize ?? 50;
 
-export async function findCustomerByPhone(phone: string) {
-  const normalized = phone.replace(/[\s-]/g, "").replace(/^\+91/, "");
-  const { data } = await supabase
-    .from("customers")
-    .select("*")
-    .or(`phone.eq.${normalized},phone.eq.+91${normalized}`)
-    .maybeSingle();
-  return data ?? null;
-}
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  params.set("page_size", String(pageSize));
 
-export async function upsertCustomer(
-  values: Partial<Customer> & { id?: string; name: string; phone: string },
-): Promise<Customer> {
-  if (values.id) {
-    return unwrap(
-      await supabase.from("customers").update(values).eq("id", values.id).select().single(),
-    );
-  }
-  const existing = await findCustomerByPhone(values.phone);
-  if (existing) {
-    const { id: _ignored, ...patch } = values;
-    return unwrap(
-      await supabase.from("customers").update(patch).eq("id", existing.id).select().single(),
-    );
-  }
-  const { data: auth } = await supabase.auth.getUser();
-  return unwrap(
-    await supabase
-      .from("customers")
-      .insert({ ...values, created_by: auth.user?.id ?? null })
-      .select()
-      .single(),
-  );
-}
+  if (options.search?.trim()) params.set("search", options.search.trim());
+  if (options.city?.trim()) params.set("city", options.city.trim());
+  if (options.minBudget !== undefined) params.set("min_budget", String(options.minBudget));
+  if (options.maxBudget !== undefined) params.set("max_budget", String(options.maxBudget));
+  if (options.sortBy) params.set("sort_by", options.sortBy);
+  if (options.sortOrder) params.set("sort_order", options.sortOrder);
 
-export async function deleteCustomer(id: string) {
-  const { error } = await supabase.from("customers").delete().eq("id", id);
-  if (error) throw new Error(error.message);
-}
-
-export async function getCustomerTimeline(customerId: string) {
-  const [quotations, leads] = await Promise.all([
-    supabase
-      .from("quotations")
-      .select("*, vehicle:vehicles(brand, model, variant)")
-      .eq("customer_id", customerId)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("leads")
-      .select("*, follow_ups(*)")
-      .eq("customer_id", customerId)
-      .order("created_at", { ascending: false }),
-  ]);
+  const res = await api.get<PaginatedCustomers>(`/api/v1/customers?${params.toString()}`);
+  const items = res.items ?? [];
   return {
-    quotations: quotations.data ?? [],
-    leads: leads.data ?? [],
+    items,
+    total: res.total ?? items.length,
+    page: res.page ?? page,
+    page_size: res.page_size ?? pageSize,
+    pages: res.pages ?? 1,
+    rows: items,
   };
 }
 
-/* ============ QUOTATIONS ============ */
+export async function getCustomer(id: number | string): Promise<CustomerResponse> {
+  return await api.get<CustomerResponse>(`/api/v1/customers/${id}`);
+}
 
-const QUOTATION_SELECT =
-  "*, customer:customers(id,name,phone,email,city), vehicle:vehicles(id,brand,model,variant,color,image_url), created_by_profile:profiles!quotations_created_by_fkey(id,name)";
+export async function createCustomer(values: CustomerCreate): Promise<CustomerResponse> {
+  return await api.post<CustomerResponse>("/api/v1/customers", values);
+}
+
+export async function updateCustomer(
+  id: number | string,
+  values: CustomerUpdate,
+): Promise<CustomerResponse> {
+  return await api.put<CustomerResponse>(`/api/v1/customers/${id}`, values);
+}
+
+export async function deleteCustomer(id: number | string): Promise<{ success: boolean; message: string }> {
+  return await api.delete<{ success: boolean; message: string }>(`/api/v1/customers/${id}`);
+}
+
+export async function findCustomerByPhone(phone: string): Promise<CustomerResponse | null> {
+  const normalized = phone.replace(/[\s-]/g, "").replace(/^\+91/, "");
+  const res = await listCustomers({ search: normalized, pageSize: 5 });
+  const exact = res.items.find(
+    (c) => c.phone.replace(/[\s-]/g, "").replace(/^\+91/, "") === normalized,
+  );
+  return exact ?? res.items[0] ?? null;
+}
+
+export async function upsertCustomer(
+  values: Partial<CustomerCreate> & { id?: number | string; full_name?: string; name?: string; phone: string },
+): Promise<CustomerResponse> {
+  const fullName = values.full_name || values.name || "";
+  const payload: CustomerCreate = {
+    full_name: fullName,
+    phone: values.phone,
+    email: values.email ?? null,
+    address: values.address ?? null,
+    city: values.city ?? null,
+    state: values.state ?? null,
+    pincode: values.pincode ?? null,
+    occupation: values.occupation ?? null,
+    preferred_language: values.preferred_language ?? "English",
+    budget: values.budget ?? null,
+  };
+
+  if (values.id) {
+    return await updateCustomer(values.id, payload);
+  }
+  const existing = await findCustomerByPhone(values.phone);
+  if (existing) {
+    return await updateCustomer(existing.id, payload);
+  }
+  return await createCustomer(payload);
+}
+
+export async function getCustomerTimeline(customerId: number | string) {
+  const quotesRes = await listQuotations({ customerId: Number(customerId), pageSize: 50 });
+  return {
+    quotations: quotesRes.items,
+    leads: [],
+  };
+}
+
+/* ============ QUOTATIONS (FastAPI REST Backend) ============ */
 
 export async function listQuotations(
   opts: {
     search?: string;
-    status?: QuotationStatus | "all";
+    status?: QuotationStatus | BackendQuotationStatus | "all";
     from?: string;
     to?: string;
-    executiveId?: string;
+    executiveId?: string | number;
+    customerId?: number;
     page?: number;
     pageSize?: number;
   } = {},
 ) {
   const page = opts.page ?? 1;
   const pageSize = opts.pageSize ?? 10;
-  let q = supabase
-    .from("quotations")
-    .select(QUOTATION_SELECT, { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range((page - 1) * pageSize, page * pageSize - 1);
 
-  if (opts.status && opts.status !== "all") q = q.eq("status", opts.status);
-  if (opts.from) q = q.gte("created_at", opts.from);
-  if (opts.to) q = q.lte("created_at", opts.to);
-  if (opts.executiveId) q = q.eq("created_by", opts.executiveId);
-  if (opts.search) q = q.ilike("quotation_number", `%${opts.search}%`);
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  params.set("page_size", String(pageSize));
 
-  const { data, error, count } = await q;
-  if (error) throw new Error(error.message);
-  return { rows: (data ?? []) as unknown as QuotationWithRelations[], count: count ?? 0 };
+  if (opts.status && opts.status !== "all") {
+    params.set("status", opts.status.toUpperCase());
+  }
+  if (opts.from) params.set("from_date", opts.from);
+  if (opts.to) params.set("to_date", opts.to);
+  if (opts.executiveId && typeof opts.executiveId === "number") {
+    params.set("sales_executive_id", String(opts.executiveId));
+  }
+  if (opts.customerId) {
+    params.set("customer_id", String(opts.customerId));
+  }
+
+  const endpoint = `/api/v1/quotations?${params.toString()}`;
+  const res = await api.get<PaginatedQuotations>(endpoint);
+
+  let items = res.items ?? [];
+  // Client-side search across quotation number, customer name, phone, or variant name
+  if (opts.search && opts.search.trim()) {
+    const s = opts.search.toLowerCase().trim();
+    items = items.filter(
+      (q) =>
+        q.quotation_number?.toLowerCase().includes(s) ||
+        q.customer?.full_name?.toLowerCase().includes(s) ||
+        q.customer?.phone?.includes(s) ||
+        q.variant?.name?.toLowerCase().includes(s),
+    );
+  }
+
+  return {
+    items,
+    total: res.total ?? 0,
+    page: res.page ?? page,
+    page_size: res.page_size ?? pageSize,
+    pages: res.pages ?? 1,
+    // Backwards-compatibility aliases:
+    rows: items as any,
+    count: res.total ?? 0,
+  };
 }
 
-export async function getQuotation(id: string) {
-  return unwrap(
-    await supabase.from("quotations").select(QUOTATION_SELECT).eq("id", id).single(),
-  ) as unknown as QuotationWithRelations;
+export async function getQuotation(id: number | string): Promise<QuotationResponse> {
+  return await api.get<QuotationResponse>(`/api/v1/quotations/${id}`);
 }
 
-export async function createQuotation(
-  values: Database["public"]["Tables"]["quotations"]["Insert"],
-) {
-  const { data: auth } = await supabase.auth.getUser();
-  return unwrap(
-    await supabase
-      .from("quotations")
-      .insert({ ...values, created_by: auth.user?.id ?? null })
-      .select(QUOTATION_SELECT)
-      .single(),
-  ) as unknown as QuotationWithRelations;
+export async function createQuotation(values: QuotationCreate): Promise<QuotationResponse> {
+  return await api.post<QuotationResponse>("/api/v1/quotations", values);
 }
 
-export async function updateQuotation(id: string, values: Partial<Quotation>) {
-  return unwrap(
-    await supabase.from("quotations").update(values).eq("id", id).select(QUOTATION_SELECT).single(),
-  ) as unknown as QuotationWithRelations;
+export async function updateQuotationStatus(
+  id: number | string,
+  req: QuotationStatusUpdate,
+): Promise<QuotationResponse> {
+  return await api.put<QuotationResponse>(`/api/v1/quotations/${id}/status`, req);
 }
 
-export async function deleteQuotation(id: string) {
-  const { error } = await supabase.from("quotations").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+export async function updateQuotation(
+  id: number | string,
+  values: { status: BackendQuotationStatus | QuotationStatus; reason?: string | null } | Partial<Quotation>,
+): Promise<QuotationResponse> {
+  const rawStatus = (values as any).status ?? "GENERATED";
+  const status = String(rawStatus).toUpperCase() as BackendQuotationStatus;
+  const reason = (values as any).reason ?? null;
+  return await updateQuotationStatus(id, { status, reason });
+}
+
+export async function deleteQuotation(_id: number | string): Promise<void> {
+  throw new Error(
+    "Quotation deletion is not supported by the FastAPI backend (quotations are immutable sales records). Use status update CANCELLED instead.",
+  );
+}
+
+export async function downloadQuotationPdf(id: number | string): Promise<Blob> {
+  return await api.getBlob(`/api/v1/quotations/${id}/pdf`);
+}
+
+export async function sendQuotationWhatsApp(id: number | string) {
+  return await api.post(`/api/v1/quotations/${id}/send-whatsapp`);
 }
 
 /* ============ LEADS & FOLLOW-UPS ============ */
@@ -484,20 +632,15 @@ export async function saveSetting(key: string, value: Json) {
 
 export async function globalSearch(term: string) {
   if (!term.trim()) return { customers: [], vehicles: [], quotations: [] };
-  const like = `%${term}%`;
-  const [customers, vehicles, quotations] = await Promise.all([
-    supabase.from("customers").select("id,name,phone,city").or(`name.ilike.${like},phone.ilike.${like}`).limit(5),
-    supabase.from("vehicles").select("id,brand,model,variant").or(`brand.ilike.${like},model.ilike.${like}`).limit(5),
-    supabase
-      .from("quotations")
-      .select("id,quotation_number,total_amount,status")
-      .ilike("quotation_number", like)
-      .limit(5),
+  const [custRes, vehRes, quoteRes] = await Promise.all([
+    listCustomers({ search: term, pageSize: 5 }),
+    listVehicles({ search: term, pageSize: 5 }),
+    listQuotations({ search: term, pageSize: 5 }),
   ]);
   return {
-    customers: customers.data ?? [],
-    vehicles: vehicles.data ?? [],
-    quotations: quotations.data ?? [],
+    customers: custRes.items,
+    vehicles: vehRes.items,
+    quotations: quoteRes.items,
   };
 }
 
@@ -513,6 +656,14 @@ export interface DashboardMetrics {
   recent: QuotationWithRelations[];
   activity: { id: string; text: string; time: string }[];
 }
+
+const QUOTATION_SELECT = `
+  *,
+  customer:customers(*),
+  vehicle:vehicles(*),
+  items:quotation_items(*),
+  creator:profiles!quotations_created_by_fkey(*)
+`;
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   const since = new Date();

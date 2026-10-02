@@ -1,3 +1,9 @@
+/**
+ * REMAINING SUPABASE DEPENDENCY:
+ * The current FastAPI backend contract does not provide a forgot-password / password-reset endpoint.
+ * This route is functionally isolated and preserved using Supabase Auth until a corresponding
+ * FastAPI endpoint is implemented in a future phase.
+ */
 import { useEffect, useState } from "react";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
@@ -64,7 +70,7 @@ function ResetPasswordPage() {
       return;
     }
     toast.success("Password updated");
-    navigate({ to: "/app", replace: true });
+    navigate({ to: "/dashboard", replace: true });
   };
 
   return (

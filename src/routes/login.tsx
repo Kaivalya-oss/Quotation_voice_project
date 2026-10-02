@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { supabase } from "@/integrations/supabase/client";
 import { signInSchema } from "@/lib/validators";
+import { api, ApiError, tokenStorage } from "@/lib/api";
+import type { TokenResponse } from "@/lib/auth-types";
+import { authQueryKey } from "@/hooks/use-auth";
 
 const title = "Sign in — VoiceQuote AI";
 const description =
@@ -35,7 +37,7 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem("mock_auth") === "true") {
+    if (tokenStorage.getAccessToken()) {
       navigate({ to: "/dashboard", replace: true });
     }
   }, [navigate]);
@@ -53,13 +55,27 @@ function LoginPage() {
     }
 
     setLoading(true);
-    // Mock login delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    setLoading(false);
+    try {
+      const result = await api.post<TokenResponse>(
+        "/api/v1/auth/login",
+        {
+          email: parsed.data.email,
+          password: parsed.data.password,
+        },
+        { skipAuth: true },
+      );
 
-    localStorage.setItem("mock_auth", "true");
-    toast.success("Welcome back");
-    navigate({ to: "/dashboard", replace: true });
+      tokenStorage.setSession(result);
+      await queryClient.invalidateQueries({ queryKey: authQueryKey });
+      toast.success("Welcome back");
+      navigate({ to: "/dashboard", replace: true });
+    } catch (err: unknown) {
+      const message =
+        err instanceof ApiError ? err.message : "Invalid email or password. Please try again.";
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
