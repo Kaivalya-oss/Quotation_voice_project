@@ -24,6 +24,15 @@ import type {
   AccessoryResponse,
   PaginatedVehicles,
 } from "@/lib/vehicle-types";
+import type {
+  InventoryUnitCreate,
+  InventoryUnitUpdate,
+  InventoryUnitResponse,
+  PaginatedInventoryUnits,
+  StockActionRequest,
+  VariantStockSummary,
+  InventoryStatus,
+} from "@/lib/inventory-types";
 
 export type Customer = Database["public"]["Tables"]["customers"]["Row"];
 export type Vehicle = Database["public"]["Tables"]["vehicles"]["Row"];
@@ -165,22 +174,82 @@ export async function listVehicleAccessories(): Promise<AccessoryResponse[]> {
   return await api.get<AccessoryResponse[]>("/api/v1/vehicles/catalog/accessories");
 }
 
-export async function adjustStock(vehicleId: string, delta: number) {
-  const { data: vehicle, error } = await supabase
-    .from("vehicles")
-    .select("stock")
-    .eq("id", vehicleId)
-    .single();
-  if (error) throw new Error(error.message);
-  const next = Math.max(0, (vehicle?.stock ?? 0) + delta);
-  return unwrap(
-    await supabase
-      .from("vehicles")
-      .update({ stock: next, stock_updated_at: new Date().toISOString() })
-      .eq("id", vehicleId)
-      .select()
-      .single(),
-  );
+
+/* ============ INVENTORY (FastAPI REST Backend) ============ */
+
+export async function listInventoryUnits(
+  opts: {
+    variantId?: number | undefined;
+    variant_id?: number | undefined;
+    status?: InventoryStatus | string | undefined;
+    branchName?: string | undefined;
+    branch_name?: string | undefined;
+    search?: string | undefined;
+    page?: number | undefined;
+    pageSize?: number | undefined;
+    page_size?: number | undefined;
+  } = {},
+): Promise<PaginatedInventoryUnits & { rows: InventoryUnitResponse[] }> {
+  const page = opts.page ?? 1;
+  const pageSize = opts.pageSize ?? opts.page_size ?? 20;
+
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  params.set("page_size", String(pageSize));
+
+  const variantId = opts.variantId ?? opts.variant_id;
+  if (variantId !== undefined) params.set("variant_id", String(variantId));
+
+  if (opts.status && opts.status !== "all") params.set("status", opts.status);
+
+  const branchName = opts.branchName ?? opts.branch_name;
+  if (branchName?.trim()) params.set("branch_name", branchName.trim());
+
+  if (opts.search?.trim()) params.set("search", opts.search.trim());
+
+  const res = await api.get<PaginatedInventoryUnits>(`/api/v1/inventory?${params.toString()}`);
+  const items = res.items ?? [];
+  return {
+    items,
+    total: res.total ?? items.length,
+    page: res.page ?? page,
+    page_size: res.page_size ?? pageSize,
+    pages: res.pages ?? 1,
+    rows: items,
+  };
+}
+
+export async function getInventoryUnit(id: number | string): Promise<InventoryUnitResponse> {
+  return await api.get<InventoryUnitResponse>(`/api/v1/inventory/${id}`);
+}
+
+export async function createInventoryUnit(values: InventoryUnitCreate): Promise<InventoryUnitResponse> {
+  return await api.post<InventoryUnitResponse>("/api/v1/inventory", values);
+}
+
+export async function updateInventoryUnit(
+  id: number | string,
+  values: InventoryUnitUpdate,
+): Promise<InventoryUnitResponse> {
+  return await api.put<InventoryUnitResponse>(`/api/v1/inventory/${id}`, values);
+}
+
+export async function reserveInventoryUnit(
+  id: number | string,
+  action?: StockActionRequest,
+): Promise<InventoryUnitResponse> {
+  return await api.post<InventoryUnitResponse>(`/api/v1/inventory/${id}/reserve`, action ?? {});
+}
+
+export async function releaseInventoryUnit(
+  id: number | string,
+  action?: StockActionRequest,
+): Promise<InventoryUnitResponse> {
+  return await api.post<InventoryUnitResponse>(`/api/v1/inventory/${id}/release`, action ?? {});
+}
+
+export async function getVariantStockSummary(variantId: number | string): Promise<VariantStockSummary> {
+  return await api.get<VariantStockSummary>(`/api/v1/inventory/summary/${variantId}`);
 }
 
 /* ============ ACCESSORIES / OFFERS ============ */
