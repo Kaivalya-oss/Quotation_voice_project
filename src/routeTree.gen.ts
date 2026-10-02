@@ -21,12 +21,12 @@ import { Route as AuthenticatedFinanceRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedFollowUpsRouteImport } from './routes/_authenticated/follow-ups'
 import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated/inventory'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
-import { Route as AuthenticatedQuotationsRouteImport } from './routes/_authenticated/quotations'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedTestRidesRouteImport } from './routes/_authenticated/test-rides'
 import { Route as AuthenticatedVehiclesRouteImport } from './routes/_authenticated/vehicles'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
+import { Route as AuthenticatedQuotationsIndexRouteImport } from './routes/_authenticated/quotations.index'
 import { Route as AuthenticatedQuotationsNewRouteImport } from './routes/_authenticated/quotations.new'
 
 const IndexRoute = IndexRouteImport.update({
@@ -88,11 +88,6 @@ const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
   path: '/leads',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedQuotationsRoute = AuthenticatedQuotationsRouteImport.update({
-  id: '/quotations',
-  path: '/quotations',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -118,11 +113,17 @@ const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   path: '/api/transcribe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedQuotationsIndexRoute =
+  AuthenticatedQuotationsIndexRouteImport.update({
+    id: '/quotations/',
+    path: '/quotations/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedQuotationsNewRoute =
   AuthenticatedQuotationsNewRouteImport.update({
-    id: '/new',
-    path: '/new',
-    getParentRoute: () => AuthenticatedQuotationsRoute,
+    id: '/quotations/new',
+    path: '/quotations/new',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -137,13 +138,13 @@ export interface FileRoutesByFullPath {
   '/follow-ups': typeof AuthenticatedFollowUpsRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/leads': typeof AuthenticatedLeadsRoute
-  '/quotations': typeof AuthenticatedQuotationsRouteWithChildren
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/test-rides': typeof AuthenticatedTestRidesRoute
   '/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/quotations/new': typeof AuthenticatedQuotationsNewRoute
+  '/quotations/': typeof AuthenticatedQuotationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -157,13 +158,13 @@ export interface FileRoutesByTo {
   '/follow-ups': typeof AuthenticatedFollowUpsRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/leads': typeof AuthenticatedLeadsRoute
-  '/quotations': typeof AuthenticatedQuotationsRouteWithChildren
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/test-rides': typeof AuthenticatedTestRidesRoute
   '/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/quotations/new': typeof AuthenticatedQuotationsNewRoute
+  '/quotations': typeof AuthenticatedQuotationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -179,13 +180,13 @@ export interface FileRoutesById {
   '/_authenticated/follow-ups': typeof AuthenticatedFollowUpsRoute
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
-  '/_authenticated/quotations': typeof AuthenticatedQuotationsRouteWithChildren
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/test-rides': typeof AuthenticatedTestRidesRoute
   '/_authenticated/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/_authenticated/quotations/new': typeof AuthenticatedQuotationsNewRoute
+  '/_authenticated/quotations/': typeof AuthenticatedQuotationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -201,13 +202,13 @@ export interface FileRouteTypes {
     | '/follow-ups'
     | '/inventory'
     | '/leads'
-    | '/quotations'
     | '/reports'
     | '/settings'
     | '/test-rides'
     | '/vehicles'
     | '/api/transcribe'
     | '/quotations/new'
+    | '/quotations/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -221,13 +222,13 @@ export interface FileRouteTypes {
     | '/follow-ups'
     | '/inventory'
     | '/leads'
-    | '/quotations'
     | '/reports'
     | '/settings'
     | '/test-rides'
     | '/vehicles'
     | '/api/transcribe'
     | '/quotations/new'
+    | '/quotations'
   id:
     | '__root__'
     | '/'
@@ -242,13 +243,13 @@ export interface FileRouteTypes {
     | '/_authenticated/follow-ups'
     | '/_authenticated/inventory'
     | '/_authenticated/leads'
-    | '/_authenticated/quotations'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/_authenticated/test-rides'
     | '/_authenticated/vehicles'
     | '/api/transcribe'
     | '/_authenticated/quotations/new'
+    | '/_authenticated/quotations/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -347,13 +348,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLeadsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/quotations': {
-      id: '/_authenticated/quotations'
-      path: '/quotations'
-      fullPath: '/quotations'
-      preLoaderRoute: typeof AuthenticatedQuotationsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/reports': {
       id: '/_authenticated/reports'
       path: '/reports'
@@ -389,29 +383,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTranscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/quotations/': {
+      id: '/_authenticated/quotations/'
+      path: '/quotations'
+      fullPath: '/quotations/'
+      preLoaderRoute: typeof AuthenticatedQuotationsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/quotations/new': {
       id: '/_authenticated/quotations/new'
-      path: '/new'
+      path: '/quotations/new'
       fullPath: '/quotations/new'
       preLoaderRoute: typeof AuthenticatedQuotationsNewRouteImport
-      parentRoute: typeof AuthenticatedQuotationsRoute
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
-
-interface AuthenticatedQuotationsRouteChildren {
-  AuthenticatedQuotationsNewRoute: typeof AuthenticatedQuotationsNewRoute
-}
-
-const AuthenticatedQuotationsRouteChildren: AuthenticatedQuotationsRouteChildren =
-  {
-    AuthenticatedQuotationsNewRoute: AuthenticatedQuotationsNewRoute,
-  }
-
-const AuthenticatedQuotationsRouteWithChildren =
-  AuthenticatedQuotationsRoute._addFileChildren(
-    AuthenticatedQuotationsRouteChildren,
-  )
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
@@ -420,11 +407,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFollowUpsRoute: typeof AuthenticatedFollowUpsRoute
   AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
-  AuthenticatedQuotationsRoute: typeof AuthenticatedQuotationsRouteWithChildren
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTestRidesRoute: typeof AuthenticatedTestRidesRoute
   AuthenticatedVehiclesRoute: typeof AuthenticatedVehiclesRoute
+  AuthenticatedQuotationsNewRoute: typeof AuthenticatedQuotationsNewRoute
+  AuthenticatedQuotationsIndexRoute: typeof AuthenticatedQuotationsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -434,11 +422,12 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFollowUpsRoute: AuthenticatedFollowUpsRoute,
   AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
-  AuthenticatedQuotationsRoute: AuthenticatedQuotationsRouteWithChildren,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTestRidesRoute: AuthenticatedTestRidesRoute,
   AuthenticatedVehiclesRoute: AuthenticatedVehiclesRoute,
+  AuthenticatedQuotationsNewRoute: AuthenticatedQuotationsNewRoute,
+  AuthenticatedQuotationsIndexRoute: AuthenticatedQuotationsIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
-import type { AppRole, LeadStage, QuotationStatus } from "@/lib/validators";
+import type { AppRole, QuotationStatus } from "@/lib/validators";
 import { api } from "@/lib/api";
 import type {
   QuotationCreate,
@@ -8,6 +8,8 @@ import type {
   QuotationStatusUpdate,
   PaginatedQuotations,
   BackendQuotationStatus,
+  WhatsAppDispatchResponse,
+  BackendOfferResponse,
 } from "@/lib/quotation-types";
 import type {
   CustomerCreate,
@@ -33,13 +35,25 @@ import type {
   VariantStockSummary,
   InventoryStatus,
 } from "@/lib/inventory-types";
+import type {
+  LeadCreate,
+  LeadUpdate,
+  LeadResponse,
+  LeadStatus,
+  LeadSource,
+  LeadPriority,
+  LeadStatusTransitionRequest,
+  PaginatedLeads,
+  FollowupCreate,
+  FollowupResponse,
+  FollowupStatus,
+  PaginatedFollowups,
+} from "@/lib/lead-types";
 
 export type Customer = Database["public"]["Tables"]["customers"]["Row"];
 export type Vehicle = Database["public"]["Tables"]["vehicles"]["Row"];
 export type Accessory = Database["public"]["Tables"]["accessories"]["Row"];
 export type Quotation = Database["public"]["Tables"]["quotations"]["Row"];
-export type Lead = Database["public"]["Tables"]["leads"]["Row"];
-export type FollowUp = Database["public"]["Tables"]["follow_ups"]["Row"];
 export type Offer = Database["public"]["Tables"]["offers"]["Row"];
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
@@ -56,12 +70,6 @@ export type QuotationWithRelations = Quotation & {
   customer: Pick<Customer, "id" | "name" | "phone" | "email" | "city"> | null;
   vehicle: Pick<Vehicle, "id" | "brand" | "model" | "variant" | "color" | "image_url"> | null;
   created_by_profile: Pick<Profile, "id" | "name"> | null;
-};
-
-export type LeadWithRelations = Lead & {
-  customer: Pick<Customer, "id" | "name" | "phone" | "city"> | null;
-  quotation: Pick<Quotation, "id" | "quotation_number" | "total_amount" | "status"> | null;
-  assignee: Pick<Profile, "id" | "name"> | null;
 };
 
 function unwrap<T>(res: { data: T | null; error: { message: string } | null }): T {
@@ -279,6 +287,17 @@ export async function deleteAccessory(id: string) {
   if (error) throw new Error(error.message);
 }
 
+/** Active offers applicable to a vehicle (FastAPI). Includes general offers with no vehicle restriction. */
+export async function listApplicableOffers(
+  opts: { brandId?: number | undefined; modelId?: number | undefined; variantId?: number | undefined } = {},
+): Promise<BackendOfferResponse[]> {
+  const params = new URLSearchParams({ active_only: "true" });
+  if (opts.brandId) params.set("brand_id", String(opts.brandId));
+  if (opts.modelId) params.set("model_id", String(opts.modelId));
+  if (opts.variantId) params.set("variant_id", String(opts.variantId));
+  return await api.get<BackendOfferResponse[]>(`/api/v1/offers?${params.toString()}`);
+}
+
 export async function listOffers(activeOnly = false) {
   let q = supabase.from("offers").select("*").order("end_date", { ascending: false });
   if (activeOnly) {
@@ -367,13 +386,20 @@ export async function deleteCustomer(id: number | string): Promise<{ success: bo
   return await api.delete<{ success: boolean; message: string }>(`/api/v1/customers/${id}`);
 }
 
+/** Last 10 digits of an Indian mobile number, so "+91 98765-43210" and "9876543210" compare equal */
+export function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, "").slice(-10);
+}
+
+/**
+ * Exact phone lookup. Uses the backend search (substring match) and then keeps only a
+ * customer whose number is the same — a partial match is never treated as the same person.
+ */
 export async function findCustomerByPhone(phone: string): Promise<CustomerResponse | null> {
-  const normalized = phone.replace(/[\s-]/g, "").replace(/^\+91/, "");
-  const res = await listCustomers({ search: normalized, pageSize: 5 });
-  const exact = res.items.find(
-    (c) => c.phone.replace(/[\s-]/g, "").replace(/^\+91/, "") === normalized,
-  );
-  return exact ?? res.items[0] ?? null;
+  const normalized = normalizePhone(phone);
+  if (normalized.length < 10) return null;
+  const res = await listCustomers({ search: normalized, pageSize: 10 });
+  return res.items.find((c) => normalizePhone(c.phone) === normalized) ?? null;
 }
 
 export async function upsertCustomer(
@@ -507,82 +533,83 @@ export async function downloadQuotationPdf(id: number | string): Promise<Blob> {
   return await api.getBlob(`/api/v1/quotations/${id}/pdf`);
 }
 
-export async function sendQuotationWhatsApp(id: number | string) {
-  return await api.post(`/api/v1/quotations/${id}/send-whatsapp`);
+export async function sendQuotationWhatsApp(id: number | string): Promise<WhatsAppDispatchResponse> {
+  return await api.post<WhatsAppDispatchResponse>(`/api/v1/quotations/${id}/send-whatsapp`);
 }
 
-/* ============ LEADS & FOLLOW-UPS ============ */
+/* ============ LEADS & FOLLOW-UPS (FastAPI REST Backend) ============ */
 
-const LEAD_SELECT =
-  "*, customer:customers(id,name,phone,city), quotation:quotations(id,quotation_number,total_amount,status), assignee:profiles!leads_assigned_to_fkey(id,name)";
-
-export async function listLeads(opts: { stage?: LeadStage | "all"; search?: string } = {}) {
-  let q = supabase.from("leads").select(LEAD_SELECT).order("updated_at", { ascending: false });
-  if (opts.stage && opts.stage !== "all") q = q.eq("stage", opts.stage);
-  const { data, error } = await q;
-  if (error) throw new Error(error.message);
-  let rows = (data ?? []) as unknown as LeadWithRelations[];
-  if (opts.search) {
-    const s = opts.search.toLowerCase();
-    rows = rows.filter(
-      (l) =>
-        l.customer?.name.toLowerCase().includes(s) || l.customer?.phone.includes(opts.search ?? ""),
-    );
-  }
-  return rows;
+export async function listLeads(
+  opts: {
+    customerId?: number;
+    status?: LeadStatus | "all";
+    source?: LeadSource;
+    priority?: LeadPriority;
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  } = {},
+): Promise<PaginatedLeads> {
+  const params = new URLSearchParams();
+  params.set("page", String(opts.page ?? 1));
+  params.set("page_size", String(opts.pageSize ?? 50));
+  if (opts.customerId) params.set("customer_id", String(opts.customerId));
+  if (opts.status && opts.status !== "all") params.set("status", opts.status);
+  if (opts.source) params.set("source", opts.source);
+  if (opts.priority) params.set("priority", opts.priority);
+  if (opts.search?.trim()) params.set("search", opts.search.trim());
+  return await api.get<PaginatedLeads>(`/api/v1/leads?${params.toString()}`);
 }
 
-export async function createLead(values: Database["public"]["Tables"]["leads"]["Insert"]) {
-  const { data: auth } = await supabase.auth.getUser();
-  return unwrap(
-    await supabase
-      .from("leads")
-      .insert({ assigned_to: auth.user?.id ?? null, ...values })
-      .select(LEAD_SELECT)
-      .single(),
-  ) as unknown as LeadWithRelations;
+export async function getLead(id: number | string): Promise<LeadResponse> {
+  return await api.get<LeadResponse>(`/api/v1/leads/${id}`);
 }
 
-export async function updateLeadStage(id: string, stage: LeadStage, lostReason?: string) {
-  return unwrap(
-    await supabase
-      .from("leads")
-      .update({ stage, lost_reason: stage === "lost" ? (lostReason ?? null) : null })
-      .eq("id", id)
-      .select(LEAD_SELECT)
-      .single(),
-  ) as unknown as LeadWithRelations;
+export async function createLead(values: LeadCreate): Promise<LeadResponse> {
+  return await api.post<LeadResponse>("/api/v1/leads", values);
 }
 
-export async function listFollowUps(opts: { leadId?: string; upcomingOnly?: boolean } = {}) {
-  let q = supabase
-    .from("follow_ups")
-    .select("*, lead:leads(id, stage, customer:customers(id,name,phone))")
-    .order("follow_up_date");
-  if (opts.leadId) q = q.eq("lead_id", opts.leadId);
-  if (opts.upcomingOnly) q = q.eq("status", "pending");
-  const { data, error } = await q;
-  if (error) throw new Error(error.message);
-  return data ?? [];
+export async function updateLead(id: number | string, values: LeadUpdate): Promise<LeadResponse> {
+  return await api.put<LeadResponse>(`/api/v1/leads/${id}`, values);
 }
 
-export async function createFollowUp(
-  values: Database["public"]["Tables"]["follow_ups"]["Insert"],
-) {
-  const { data: auth } = await supabase.auth.getUser();
-  return unwrap(
-    await supabase
-      .from("follow_ups")
-      .insert({ ...values, created_by: auth.user?.id ?? null })
-      .select()
-      .single(),
-  );
+/** Status changes must go through the backend FSM endpoint, never a generic update */
+export async function transitionLeadStatus(
+  id: number | string,
+  req: LeadStatusTransitionRequest,
+): Promise<LeadResponse> {
+  return await api.post<LeadResponse>(`/api/v1/leads/${id}/status`, req);
 }
 
-export async function completeFollowUp(id: string) {
-  return unwrap(
-    await supabase.from("follow_ups").update({ status: "done" }).eq("id", id).select().single(),
-  );
+export async function listFollowUps(
+  opts: {
+    leadId?: number;
+    status?: FollowupStatus | "all";
+    from?: string;
+    to?: string;
+    page?: number;
+    pageSize?: number;
+  } = {},
+): Promise<PaginatedFollowups> {
+  const params = new URLSearchParams();
+  params.set("page", String(opts.page ?? 1));
+  params.set("page_size", String(opts.pageSize ?? 50));
+  if (opts.leadId) params.set("lead_id", String(opts.leadId));
+  if (opts.status && opts.status !== "all") params.set("status", opts.status);
+  if (opts.from) params.set("from_date", opts.from);
+  if (opts.to) params.set("to_date", opts.to);
+  return await api.get<PaginatedFollowups>(`/api/v1/followups?${params.toString()}`);
+}
+
+export async function createFollowUp(values: FollowupCreate): Promise<FollowupResponse> {
+  return await api.post<FollowupResponse>("/api/v1/followups", values);
+}
+
+export async function completeFollowUp(
+  id: number | string,
+  notes?: string | null,
+): Promise<FollowupResponse> {
+  return await api.post<FollowupResponse>(`/api/v1/followups/${id}/complete`, { notes: notes ?? null });
 }
 
 /* ============ NOTIFICATIONS ============ */

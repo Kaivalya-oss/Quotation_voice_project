@@ -211,13 +211,29 @@ export interface PaginatedQuotations {
 }
 
 /**
- * Response for POST /api/v1/quotations/{id}/send-whatsapp
+ * Provider result nested under `delivery`.
+ * status is "SENT" for the Meta Cloud API provider, "MOCK_SENT" when the backend
+ * has no WhatsApp credentials and only simulates (logs) the message.
  */
-export interface WhatsAppDispatchResponse {
+export interface WhatsAppDeliveryResult {
   provider: string;
-  status: string;
+  status: "SENT" | "MOCK_SENT" | string;
   message_id: string;
   recipient?: string;
   note?: string;
   details?: unknown;
+}
+
+/**
+ * Response for POST /api/v1/quotations/{id}/send-whatsapp (after envelope unwrap)
+ */
+export interface WhatsAppDispatchResponse {
+  success: boolean;
+  quotation_number: string;
+  delivery: WhatsAppDeliveryResult;
+}
+
+/** True only when the backend reports a real provider delivery, never for MOCK_SENT */
+export function isRealWhatsAppDelivery(res: WhatsAppDispatchResponse | null | undefined): boolean {
+  return res?.delivery?.status === "SENT";
 }

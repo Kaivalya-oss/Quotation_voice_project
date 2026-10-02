@@ -42,12 +42,12 @@ import {
 import type {
   QuotationResponse,
   BackendQuotationStatus,
-  WhatsAppDispatchResponse,
 } from "@/lib/quotation-types";
+import { isRealWhatsAppDelivery } from "@/lib/quotation-types";
 
 const searchSchema = z.object({ q: z.string().optional() });
 
-export const Route = createFileRoute("/_authenticated/quotations")({
+export const Route = createFileRoute("/_authenticated/quotations/")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
@@ -141,13 +141,13 @@ function QuotationsPage() {
     }
     setBusyId(row.id);
     try {
-      const res = (await sendQuotationWhatsApp(row.id)) as WhatsAppDispatchResponse;
-      if (res && res.status === "MOCK_SENT") {
-        toast.info(
-          `WhatsApp simulated for ${row.customer.full_name}: ${res.note ?? "Message recorded in dev mode"}`,
-        );
+      const res = await sendQuotationWhatsApp(row.id);
+      if (isRealWhatsAppDelivery(res)) {
+        toast.success(`Quotation sent to ${row.customer.full_name}'s WhatsApp.`);
       } else {
-        toast.success(`Quotation sent to ${row.customer.full_name}'s WhatsApp!`);
+        toast.warning(
+          `WhatsApp NOT delivered — backend is in simulation mode (${res.delivery?.status ?? "unknown"}). ${res.delivery?.note ?? ""}`,
+        );
       }
       invalidate();
     } catch (error) {
