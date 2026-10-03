@@ -7,14 +7,7 @@ import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { APP_ROLES, ROLE_LABEL, signUpSchema, type AppRole } from "@/lib/validators";
+import { signUpSchema } from "@/lib/validators";
 import { api, ApiError, tokenStorage } from "@/lib/api";
 import type { TokenResponse, UserResponse } from "@/lib/auth-types";
 import { authQueryKey } from "@/hooks/use-auth";
@@ -22,10 +15,6 @@ import { authQueryKey } from "@/hooks/use-auth";
 const title = "Create account — VoiceQuote AI";
 const description =
   "Create your VoiceQuote AI account and start generating quotations with your voice.";
-
-const SELECTABLE_ROLES: AppRole[] = APP_ROLES.filter(
-  (role) => role !== "admin" && role !== "dealer_owner",
-);
 
 export const Route = createFileRoute("/register")({
   head: () => ({
@@ -45,7 +34,6 @@ function RegisterPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
-  const [role, setRole] = useState<AppRole>("sales_executive");
   const [registered, setRegistered] = useState(false);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -71,7 +59,7 @@ function RegisterPage() {
           password: parsed.data.password,
           full_name: parsed.data.name,
           phone: parsed.data.phone ?? null,
-          role_name: role.toUpperCase(),
+          // Self-registration always creates a Sales Executive; other roles are assigned by an administrator.
         },
         { skipAuth: true },
       );
@@ -86,7 +74,7 @@ function RegisterPage() {
       }
 
       // Backend returns UserResponse on registration (201 Created)
-      toast.success("Account created successfully!");
+      toast.success("Account created. A manager must approve it before you can sign in.");
       setRegistered(true);
     } catch (err: unknown) {
       if (err instanceof ApiError) {
@@ -121,9 +109,10 @@ function RegisterPage() {
     >
       {registered ? (
         <div className="rounded-2xl border border-success/30 bg-success/10 p-5 text-sm">
-          <p className="font-medium text-foreground">Account created successfully</p>
+          <p className="font-medium text-foreground">Account created — awaiting approval</p>
           <p className="mt-1 text-muted-foreground">
-            Your workspace account is ready. Please sign in with your credentials to get started.
+            A manager needs to approve your account before you can sign in. You will be able to
+            sign in with these credentials once it has been activated.
           </p>
           <Button asChild className="mt-4 rounded-full" size="lg">
             <Link to="/login">Sign in now</Link>
@@ -152,24 +141,10 @@ function RegisterPage() {
               autoComplete="email"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
-            <Select value={role} onValueChange={(value) => setRole(value as AppRole)}>
-              <SelectTrigger id="role">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SELECTABLE_ROLES.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {ROLE_LABEL[option]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Manager access is granted by an administrator after sign-up.
-            </p>
-          </div>
+          <p className="rounded-xl border bg-muted/40 p-3 text-xs text-muted-foreground">
+            New accounts are created as <strong>Sales Executive</strong>. Finance, inventory and
+            manager access is granted by an administrator.
+          </p>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <Input

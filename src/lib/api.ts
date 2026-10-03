@@ -109,6 +109,59 @@ export interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   skipAuth?: boolean;
   _isRetry?: boolean;
+  /** Abort the request after this many ms (default DEFAULT_TIMEOUT_MS). */
+  timeoutMs?: number;
+}
+
+/** Requests never hang forever: after this long they fail with ApiError code "TIMEOUT". */
+export const DEFAULT_TIMEOUT_MS = 20_000;
+const DOWNLOAD_TIMEOUT_MS = 60_000;
+
+/**
+ * fetch() with a hard timeout. A timeout surfaces as ApiError(0, "TIMEOUT") and network
+ * failures as ApiError(0, "NETWORK_ERROR"). Nothing is retried here: a timed-out mutation may
+ * still have been processed by the server, so retrying is left to the caller (quotation
+ * creation is protected by an Idempotency-Key; GET queries are retried by TanStack Query).
+ */
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const callerSignal = init.signal;
+  const onCallerAbort = () => controller.abort(callerSignal?.reason);
+  if (callerSignal) {
+    if (callerSignal.aborted) controller.abort(callerSignal.reason);
+    else callerSignal.addEventListener("abort", onCallerAbort, { once: true });
+  }
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err: unknown) {
+    if (timedOut) {
+      const method = (init.method ?? "GET").toUpperCase();
+      const seconds = Math.round(timeoutMs / 1000);
+      throw new ApiError(
+        0,
+        "TIMEOUT",
+        method === "GET"
+          ? `The server did not respond within ${seconds}s. Please try again.`
+          : `The server did not respond within ${seconds}s. The action may still have been processed — check before retrying.`,
+      );
+    }
+    if (callerSignal?.aborted) throw err;
+    const message = err instanceof Error ? err.message : "Network error";
+    throw new ApiError(0, "NETWORK_ERROR", `Failed to connect to backend: ${message}`);
+  } finally {
+    clearTimeout(timer);
+    callerSignal?.removeEventListener("abort", onCallerAbort);
+  }
 }
 
 // Single active promise to handle concurrent 401 refreshes
@@ -131,7 +184,7 @@ async function refreshAccessToken(): Promise<string | null> {
       }
 
       const refreshUrl = resolveUrl("/api/v1/auth/refresh");
-      const res = await fetch(refreshUrl, {
+      const res = await fetchWithTimeout(refreshUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -180,6 +233,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     body,
     skipAuth = false,
     _isRetry = false,
+    timeoutMs,
     headers: customHeaders,
     ...fetchInit
   } = options;
@@ -219,13 +273,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     fetchOptions.body = serializedBody;
   }
 
-  let response: Response;
-  try {
-    response = await fetch(url, fetchOptions);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Network error";
-    throw new ApiError(0, "NETWORK_ERROR", `Failed to connect to backend: ${message}`);
-  }
+  const response = await fetchWithTimeout(url, fetchOptions, timeoutMs);
 
   // Handle 401 Unauthorized with token refresh (once per request, ignoring auth routes)
   const isAuthRoute =
@@ -334,8 +382,13 @@ export const api = {
   },
 
   async getBlob(path: string, options?: Omit<RequestOptions, "method" | "body">): Promise<Blob> {
-    const { skipAuth = false, _isRetry = false, headers: customHeaders, ...fetchInit } =
-      options ?? {};
+    const {
+      skipAuth = false,
+      _isRetry = false,
+      timeoutMs = DOWNLOAD_TIMEOUT_MS,
+      headers: customHeaders,
+      ...fetchInit
+    } = options ?? {};
     const url = resolveUrl(path);
     const headers = new Headers(customHeaders);
 
@@ -346,13 +399,11 @@ export const api = {
       }
     }
 
-    let response: Response;
-    try {
-      response = await fetch(url, { ...fetchInit, method: "GET", headers });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Network error";
-      throw new ApiError(0, "NETWORK_ERROR", `Failed to connect to backend: ${message}`);
-    }
+    const response = await fetchWithTimeout(
+      url,
+      { ...fetchInit, method: "GET", headers },
+      timeoutMs,
+    );
 
     if (response.status === 401 && !skipAuth && !_isRetry) {
       const newAccessToken = await refreshAccessToken();

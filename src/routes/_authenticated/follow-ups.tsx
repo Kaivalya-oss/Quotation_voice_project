@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useRef, useState } from "react";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CheckCircle2, Loader2 } from "lucide-react";
@@ -9,7 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { completeFollowUp, getLead, listFollowUps } from "@/services/repository";
+import { LeadStageActions } from "@/components/leads/LeadStageActions";
+import { useAuth } from "@/hooks/use-auth";
+import { cancelFollowUp, completeFollowUp, getLead, listFollowUps } from "@/services/repository";
 import { enumLabel, leadStatusStyles, type FollowupStatus } from "@/lib/lead-types";
 
 export const Route = createFileRoute("/_authenticated/follow-ups")({
@@ -38,14 +40,46 @@ function FollowUpsPage() {
     leadQueries.flatMap((q) => (q.data ? [[q.data.id, q.data] as const] : [])),
   );
 
+  const { user, isManager } = useAuth();
+  const completing = useRef(new Set<number>());
+
   const completeMutation = useMutation({
     mutationFn: (id: number) => completeFollowUp(id),
     onSuccess: () => {
       toast.success("Follow-up marked complete");
-      queryClient.invalidateQueries({ queryKey: ["followups"] });
     },
     onError: (err: Error) => toast.error(err.message),
+    onSettled: (_data, _err, id) => {
+      completing.current.delete(id);
+      queryClient.invalidateQueries({ queryKey: ["followups"] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
   });
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: number) => cancelFollowUp(id, "Cancelled from follow-ups list"),
+    onSuccess: () => toast.success("Follow-up cancelled"),
+    onError: (err: Error) => toast.error(err.message),
+    onSettled: (_data, _err, id) => {
+      completing.current.delete(id);
+      queryClient.invalidateQueries({ queryKey: ["followups"] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+
+  const cancel = (id: number) => {
+    if (completing.current.has(id)) return;
+    if (!window.confirm("Cancel this follow-up?")) return;
+    completing.current.add(id);
+    cancelMutation.mutate(id);
+  };
+
+  const markDone = (id: number) => {
+    // Synchronous guard: a double click must not send two requests before React re-renders.
+    if (completing.current.has(id)) return;
+    completing.current.add(id);
+    completeMutation.mutate(id);
+  };
 
   const now = Date.now();
 
@@ -86,6 +120,11 @@ function FollowUpsPage() {
           {items.map((f) => {
             const lead = leadsById.get(f.lead_id);
             const overdue = f.status === "SCHEDULED" && new Date(f.scheduled_at).getTime() < now;
+            const canComplete =
+              isManager ||
+              f.assigned_user_id === user?.id ||
+              lead?.assigned_salesperson_id == null ||
+              lead?.assigned_salesperson_id === user?.id;
             return (
               <Card key={f.id} className="rounded-xl">
                 <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
@@ -122,24 +161,49 @@ function FollowUpsPage() {
                         </>
                       )}
                     </div>
-                    {f.notes && <p className="text-sm">{f.notes}</p>}
+                    {f.notes && <p className="text-sm whitespace-pre-line">{f.notes}</p>}
+                    {lead && (
+                      <div className="pt-2">
+                        <LeadStageActions lead={lead} compact />
+                      </div>
+                    )}
                   </div>
-                  {f.status === "SCHEDULED" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1"
-                      disabled={completeMutation.isPending}
-                      onClick={() => completeMutation.mutate(f.id)}
+                  <div className="flex flex-col items-end gap-2">
+                    {f.status === "SCHEDULED" && canComplete && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        disabled={completeMutation.isPending && completeMutation.variables === f.id}
+                        onClick={() => markDone(f.id)}
+                      >
+                        {completeMutation.isPending && completeMutation.variables === f.id ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="size-4" />
+                        )}
+                        Mark done
+                      </Button>
+                    )}
+                    {f.status === "SCHEDULED" && canComplete && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-muted-foreground"
+                        disabled={cancelMutation.isPending && cancelMutation.variables === f.id}
+                        onClick={() => cancel(f.id)}
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                    <Link
+                      to="/leads"
+                      search={{ lead: f.lead_id }}
+                      className="text-xs text-primary hover:underline"
                     >
-                      {completeMutation.isPending && completeMutation.variables === f.id ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="size-4" />
-                      )}
-                      Mark done
-                    </Button>
-                  )}
+                      Open lead
+                    </Link>
+                  </div>
                 </CardContent>
               </Card>
             );

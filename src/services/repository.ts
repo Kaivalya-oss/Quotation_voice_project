@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import type { AppRole, QuotationStatus } from "@/lib/validators";
 import { api } from "@/lib/api";
+import type { UserResponse } from "@/lib/auth-types";
 import type {
   QuotationCreate,
   QuotationResponse,
@@ -502,8 +503,19 @@ export async function getQuotation(id: number | string): Promise<QuotationRespon
   return await api.get<QuotationResponse>(`/api/v1/quotations/${id}`);
 }
 
-export async function createQuotation(values: QuotationCreate): Promise<QuotationResponse> {
-  return await api.post<QuotationResponse>("/api/v1/quotations", values);
+/**
+ * Create a quotation. Pass the same `idempotencyKey` for every retry of one intake attempt:
+ * the backend then returns the original quotation instead of creating a duplicate.
+ */
+export async function createQuotation(
+  values: QuotationCreate,
+  idempotencyKey?: string,
+): Promise<QuotationResponse> {
+  return await api.post<QuotationResponse>(
+    "/api/v1/quotations",
+    values,
+    idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : undefined,
+  );
 }
 
 export async function updateQuotationStatus(
@@ -541,19 +553,21 @@ export async function sendQuotationWhatsApp(id: number | string): Promise<WhatsA
 
 export async function listLeads(
   opts: {
-    customerId?: number;
-    status?: LeadStatus | "all";
-    source?: LeadSource;
-    priority?: LeadPriority;
-    search?: string;
-    page?: number;
-    pageSize?: number;
+    customerId?: number | undefined;
+    assignedSalespersonId?: number | undefined;
+    status?: LeadStatus | "all" | undefined;
+    source?: LeadSource | undefined;
+    priority?: LeadPriority | undefined;
+    search?: string | undefined;
+    page?: number | undefined;
+    pageSize?: number | undefined;
   } = {},
 ): Promise<PaginatedLeads> {
   const params = new URLSearchParams();
   params.set("page", String(opts.page ?? 1));
   params.set("page_size", String(opts.pageSize ?? 50));
   if (opts.customerId) params.set("customer_id", String(opts.customerId));
+  if (opts.assignedSalespersonId) params.set("assigned_salesperson_id", String(opts.assignedSalespersonId));
   if (opts.status && opts.status !== "all") params.set("status", opts.status);
   if (opts.source) params.set("source", opts.source);
   if (opts.priority) params.set("priority", opts.priority);
@@ -610,6 +624,45 @@ export async function completeFollowUp(
   notes?: string | null,
 ): Promise<FollowupResponse> {
   return await api.post<FollowupResponse>(`/api/v1/followups/${id}/complete`, { notes: notes ?? null });
+}
+
+export async function cancelFollowUp(
+  id: number | string,
+  reason?: string | null,
+): Promise<FollowupResponse> {
+  return await api.post<FollowupResponse>(`/api/v1/followups/${id}/cancel`, { reason: reason ?? null });
+}
+
+/* ============ STAFF / USERS (FastAPI, management only) ============ */
+
+export interface PaginatedUsers {
+  items: UserResponse[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+}
+
+export async function listUsers(
+  opts: { isActive?: boolean | undefined; role?: string | undefined; search?: string | undefined } = {},
+): Promise<PaginatedUsers> {
+  const params = new URLSearchParams({ page_size: "100" });
+  if (opts.isActive !== undefined) params.set("is_active", String(opts.isActive));
+  if (opts.role) params.set("role", opts.role);
+  if (opts.search?.trim()) params.set("search", opts.search.trim());
+  return await api.get<PaginatedUsers>(`/api/v1/users?${params.toString()}`);
+}
+
+export async function activateUser(id: number): Promise<UserResponse> {
+  return await api.post<UserResponse>(`/api/v1/users/${id}/activate`);
+}
+
+export async function deactivateUser(id: number): Promise<UserResponse> {
+  return await api.post<UserResponse>(`/api/v1/users/${id}/deactivate`);
+}
+
+export async function changeUserRole(id: number, roleName: string): Promise<UserResponse> {
+  return await api.put<UserResponse>(`/api/v1/users/${id}/role`, { role_name: roleName });
 }
 
 /* ============ NOTIFICATIONS ============ */

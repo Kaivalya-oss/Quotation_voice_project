@@ -53,13 +53,17 @@ const nav = [
   { to: "/test-rides", label: "Test Rides", icon: MapPin },
   { to: "/follow-ups", label: "Follow-ups", icon: Bell },
   { to: "/reports", label: "Reports", icon: PieChart },
+  { to: "/staff", label: "Staff", icon: Users, managerOnly: true },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
+  const { isManager } = useAuth();
   return (
     <nav className="flex flex-col gap-1 p-3" aria-label="Sidebar">
-      {nav.map(({ to, label, icon: Icon, ...rest }) => (
+      {nav
+        .filter((item) => isManager || !("managerOnly" in item && item.managerOnly))
+        .map(({ to, label, icon: Icon, ...rest }) => (
         <Link
           key={to}
           to={to}

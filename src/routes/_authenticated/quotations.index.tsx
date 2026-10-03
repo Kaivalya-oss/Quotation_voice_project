@@ -43,7 +43,7 @@ import type {
   QuotationResponse,
   BackendQuotationStatus,
 } from "@/lib/quotation-types";
-import { isRealWhatsAppDelivery } from "@/lib/quotation-types";
+import { QUOTATION_STATUS_TRANSITIONS, isRealWhatsAppDelivery } from "@/lib/quotation-types";
 
 const searchSchema = z.object({ q: z.string().optional() });
 
@@ -294,11 +294,7 @@ function QuotationsPage() {
                             <DropdownMenuItem onSelect={() => void handleWhatsApp(row)}>
                               <Send className="size-4" /> Send on WhatsApp
                             </DropdownMenuItem>
-                            {BACKEND_STATUSES.filter(
-                              (s) =>
-                                s !== row.status &&
-                                (s === "ACCEPTED" || s === "REJECTED" || s === "CANCELLED"),
-                            ).map((s) => (
+                            {(QUOTATION_STATUS_TRANSITIONS[row.status] ?? []).map((s) => (
                               <DropdownMenuItem
                                 key={s}
                                 onSelect={() => statusMutation.mutate({ id: row.id, next: s })}

@@ -13,6 +13,24 @@ export type BackendQuotationStatus =
   | "CANCELLED";
 
 /**
+ * Manual status changes offered in the UI, mirroring the backend state machine
+ * (app/services/quotation_service.py QUOTATION_STATUS_TRANSITIONS). The backend rejects
+ * anything else and refuses to accept a quotation past its expiry date.
+ */
+export const QUOTATION_STATUS_TRANSITIONS: Record<BackendQuotationStatus, BackendQuotationStatus[]> = {
+  DRAFT: ["GENERATED", "CANCELLED"],
+  GENERATED: ["SENT", "ACCEPTED", "REJECTED", "CANCELLED"],
+  SENT: ["ACCEPTED", "REJECTED", "CANCELLED"],
+  ACCEPTED: ["CANCELLED"],
+  REJECTED: [],
+  EXPIRED: [],
+  CANCELLED: [],
+};
+
+/** Max annual interest rate accepted by the backend. */
+export const MAX_INTEREST_RATE = 36;
+
+/**
  * Nested Customer representation in QuotationResponse
  */
 export interface BackendCustomerResponse {
@@ -228,12 +246,18 @@ export interface WhatsAppDeliveryResult {
  * Response for POST /api/v1/quotations/{id}/send-whatsapp (after envelope unwrap)
  */
 export interface WhatsAppDispatchResponse {
+  /** True only for a real provider delivery (same as `delivered`). */
   success: boolean;
+  delivered: boolean;
+  /** True when the backend has no WhatsApp credentials and only simulated the send. */
+  simulated: boolean;
   quotation_number: string;
+  /** Quotation status after the attempt; unchanged (not SENT) for simulated sends. */
+  quotation_status: BackendQuotationStatus;
   delivery: WhatsAppDeliveryResult;
 }
 
 /** True only when the backend reports a real provider delivery, never for MOCK_SENT */
 export function isRealWhatsAppDelivery(res: WhatsAppDispatchResponse | null | undefined): boolean {
-  return res?.delivery?.status === "SENT";
+  return res?.delivered === true && res.delivery?.status === "SENT";
 }

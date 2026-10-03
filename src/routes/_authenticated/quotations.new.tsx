@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -39,6 +39,7 @@ import { downloadBlob } from "@/lib/pdf";
 import {
   createCustomer,
   createLead,
+  getLead,
   createQuotation,
   downloadQuotationPdf,
   findCustomerByPhone,
@@ -54,6 +55,7 @@ import {
 import type { CustomerResponse } from "@/lib/customer-types";
 import type { VariantResponse } from "@/lib/vehicle-types";
 import {
+  MAX_INTEREST_RATE,
   isRealWhatsAppDelivery,
   type QuotationItemCreate,
   type QuotationResponse,
@@ -96,8 +98,11 @@ interface IntakeResult {
   quotation: QuotationResponse;
   customer: CustomerResponse;
   customerCreated: boolean;
-  lead: LeadResponse;
+  /** Null when the customer's open lead for this vehicle belongs to another salesperson. */
+  lead: LeadResponse | null;
   leadCreated: boolean;
+  /** Set when the open lead exists but is handled by someone else. */
+  leadOwnedElsewhere?: boolean;
 }
 
 const num = (v: string | number | null | undefined) => Number(v ?? 0) || 0;
@@ -275,6 +280,8 @@ function NewQuotationPage() {
     if (s === 2) {
       if (num(downPayment) < 0) return "Down payment cannot be negative.";
       if (num(interestRate) < 0) return "Interest rate cannot be negative.";
+      if (num(interestRate) > MAX_INTEREST_RATE)
+        return `Interest rate cannot exceed ${MAX_INTEREST_RATE}% p.a.`;
     }
     return null;
   };
@@ -287,6 +294,29 @@ function NewQuotationPage() {
     }
     setStep((s) => Math.min(STEPS.length - 1, s + 1));
   };
+
+  // ---- Double-submit protection ----
+  // A ref (not state) so a second click in the same tick is rejected before React re-renders.
+  const submitInFlight = useRef(false);
+  // One key per intake attempt, reused for every retry so the backend can return the original
+  // quotation instead of creating a duplicate. A new key is issued when the request changes.
+  const intakeKey = useRef<string | null>(null);
+  // Customer created by an earlier (failed) attempt of this same intake.
+  const createdCustomerId = useRef<number | null>(null);
+  const requestFingerprint = JSON.stringify([
+    existingCustomer?.id ?? normalizedPhone,
+    variantId,
+    accessoryIds,
+    customItems,
+    offerId,
+    downPayment,
+    loanTenure,
+    interestRate,
+    notes,
+  ]);
+  useEffect(() => {
+    intakeKey.current = null;
+  }, [requestFingerprint]);
 
   // ---- Submit: customer → lead → quotation, all persisted by the backend ----
   const submitMutation = useMutation({
@@ -306,6 +336,7 @@ function NewQuotationPage() {
             email: form.email.trim() || null,
           });
           customerCreated = true;
+          createdCustomerId.current = customer.id;
         } catch (err) {
           // Someone registered the same phone in the meantime — use that record, never a duplicate
           if (err instanceof ApiError && err.code === "CUSTOMER_PHONE_EXISTS") {
@@ -314,6 +345,8 @@ function NewQuotationPage() {
           if (!customer) throw err;
         }
         setExistingCustomer(customer);
+      } else if (createdCustomerId.current === customer.id) {
+        customerCreated = true;
       }
 
       // 2. Lead: associate with an open lead for the same vehicle, otherwise open a new one (status NEW)
@@ -324,31 +357,56 @@ function NewQuotationPage() {
             !CLOSED_LEAD_STATUSES.has(l.status) && l.interested_variant_id === selectedVariant.id,
         ) ?? null;
       let leadCreated = false;
+      let leadOwnedElsewhere = false;
       if (!lead) {
-        lead = await createLead({
-          customer_id: customer.id,
-          interested_variant_id: selectedVariant.id,
-          source,
-          priority,
-          notes: notes.trim() || `Quotation requested for ${selectedVariant.name}`,
-        });
-        leadCreated = true;
+        try {
+          lead = await createLead({
+            customer_id: customer.id,
+            interested_variant_id: selectedVariant.id,
+            source,
+            priority,
+            notes: notes.trim() || `Quotation requested for ${selectedVariant.name}`,
+          });
+          leadCreated = true;
+        } catch (err) {
+          // The backend allows one open lead per customer + vehicle and tells us which one exists.
+          const existingLeadId =
+            err instanceof ApiError && err.code === "LEAD_ALREADY_OPEN"
+              ? (err.details as { lead_id?: number } | undefined)?.lead_id
+              : undefined;
+          if (!existingLeadId) throw err;
+          try {
+            lead = await getLead(existingLeadId);
+          } catch (lookupErr) {
+            // Another salesperson handles this customer's lead for the vehicle; reads are
+            // scoped, so we cannot open it. The quotation is still created for this salesperson.
+            if (lookupErr instanceof ApiError && lookupErr.status === 404) {
+              leadOwnedElsewhere = true;
+            } else {
+              throw lookupErr;
+            }
+          }
+        }
       }
 
       // 3. Quotation: backend owns number, pricing, discount, EMI, expiry and PDF
-      const quotation = await createQuotation({
-        customer_id: customer.id,
-        variant_id: selectedVariant.id,
-        accessory_ids: accessoryIds,
-        custom_items: validCustomItems,
-        offer_id: offerId,
-        down_payment: num(downPayment),
-        loan_tenure: loanTenure,
-        interest_rate: num(interestRate),
-        notes: notes.trim() || null,
-      });
+      intakeKey.current ??= crypto.randomUUID();
+      const quotation = await createQuotation(
+        {
+          customer_id: customer.id,
+          variant_id: selectedVariant.id,
+          accessory_ids: accessoryIds,
+          custom_items: validCustomItems,
+          offer_id: offerId,
+          down_payment: num(downPayment),
+          loan_tenure: loanTenure,
+          interest_rate: num(interestRate),
+          notes: notes.trim() || null,
+        },
+        intakeKey.current,
+      );
 
-      return { quotation, customer, customerCreated, lead, leadCreated };
+      return { quotation, customer, customerCreated, lead, leadCreated, leadOwnedElsewhere };
     },
     onSuccess: (res) => {
       setResult(res);
@@ -358,9 +416,20 @@ function NewQuotationPage() {
       toast.success(`Quotation ${res.quotation.quotation_number} created`);
     },
     onError: (err: Error) => toast.error(err.message || "Failed to create quotation."),
+    onSettled: () => {
+      submitInFlight.current = false;
+    },
   });
 
+  const submitQuotation = () => {
+    if (submitInFlight.current) return;
+    submitInFlight.current = true;
+    submitMutation.mutate();
+  };
+
   const resetAll = () => {
+    intakeKey.current = null;
+    createdCustomerId.current = null;
     setResult(null);
     setStep(0);
     setForm({ full_name: "", phone: "", address: "", city: "", email: "" });
@@ -847,6 +916,7 @@ function NewQuotationPage() {
                       type="number"
                       step="0.1"
                       min={0}
+                      max={MAX_INTEREST_RATE}
                       value={interestRate}
                       onChange={(e) => setInterestRate(e.target.value)}
                       disabled={loanTenure === 0}
@@ -954,7 +1024,7 @@ function NewQuotationPage() {
             </Button>
           ) : (
             <Button
-              onClick={() => submitMutation.mutate()}
+              onClick={submitQuotation}
               disabled={submitMutation.isPending}
               className="rounded-full"
             >
@@ -1008,6 +1078,7 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
   const [pdfBusy, setPdfBusy] = useState(false);
   const [waResult, setWaResult] = useState<WhatsAppDispatchResponse | null>(null);
 
+  const waInFlight = useRef(false);
   const waMutation = useMutation({
     mutationFn: () => sendQuotationWhatsApp(q.id),
     onSuccess: (res) => setWaResult(res),
@@ -1108,7 +1179,15 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
             <Button
               className="gap-2"
               disabled={waMutation.isPending}
-              onClick={() => waMutation.mutate()}
+              onClick={() => {
+                if (waInFlight.current) return;
+                waInFlight.current = true;
+                waMutation.mutate(undefined, {
+                  onSettled: () => {
+                    waInFlight.current = false;
+                  },
+                });
+              }}
             >
               {waMutation.isPending ? (
                 <Loader2 className="size-4 animate-spin" />
@@ -1154,12 +1233,14 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
           <div>
             <h3 className="text-lg font-semibold">Sales lead</h3>
             <p className="text-sm text-muted-foreground">
-              {result.leadCreated
-                ? "A new lead was opened for this enquiry."
-                : "This quotation was added to the customer's existing open lead for this vehicle."}
+              {result.leadOwnedElsewhere
+                ? "This customer already has an open lead for this vehicle handled by another salesperson. The quotation is saved under your name; coordinate with them or a manager for the lead."
+                : result.leadCreated
+                  ? "A new lead was opened for this enquiry."
+                  : "This quotation was added to the customer's existing open lead for this vehicle."}
             </p>
           </div>
-          <LeadActionsPanel leadId={lead.id} />
+          {lead && <LeadActionsPanel leadId={lead.id} />}
         </CardContent>
       </Card>
 

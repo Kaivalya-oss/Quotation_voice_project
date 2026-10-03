@@ -18,6 +18,34 @@ export const LEAD_STATUSES = [
 ] as const;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
+/**
+ * Next stages offered as actions in the UI, mirroring the backend state machine
+ * (app/services/lead_service.py VALID_TRANSITIONS). This only decides which buttons to show;
+ * the backend remains authoritative and rejects anything else.
+ */
+export const LEAD_NEXT_STATUSES: Record<LeadStatus, readonly LeadStatus[]> = {
+  NEW: ["CONTACTED", "LOST"],
+  CONTACTED: ["INTERESTED", "LOST"],
+  INTERESTED: ["TEST_RIDE", "NEGOTIATION", "LOST"],
+  TEST_RIDE: ["NEGOTIATION", "LOST"],
+  NEGOTIATION: ["BOOKED", "LOST"],
+  BOOKED: ["PURCHASED", "LOST"],
+  PURCHASED: [],
+  LOST: ["NEW", "CONTACTED"],
+};
+
+/** Default reason recorded when an action button is used without a typed note. */
+export const LEAD_ACTION_DEFAULT_REASON: Partial<Record<LeadStatus, string>> = {
+  CONTACTED: "Customer contacted",
+  INTERESTED: "Customer is interested",
+  TEST_RIDE: "Customer agreed to test drive",
+  NEGOTIATION: "Price negotiation started",
+  BOOKED: "Booking confirmed",
+  PURCHASED: "Vehicle purchased",
+  LOST: "Customer not proceeding",
+  NEW: "Lead reopened",
+};
+
 export const LEAD_SOURCES = ["WALK_IN", "ONLINE", "REFERRAL", "PHONE_INQUIRY", "CAMPAIGN"] as const;
 export type LeadSource = (typeof LEAD_SOURCES)[number];
 
@@ -84,6 +112,8 @@ export interface LeadUpdate {
 export interface LeadStatusTransitionRequest {
   to_status: LeadStatus;
   reason?: string | null;
+  /** Status the user saw; the backend answers 409 LEAD_STATE_CHANGED if the lead moved on. */
+  from_status?: LeadStatus | null;
 }
 
 export interface LeadResponse {

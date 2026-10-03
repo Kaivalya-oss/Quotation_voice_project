@@ -23,6 +23,7 @@ import { Route as AuthenticatedInventoryRouteImport } from './routes/_authentica
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
 import { Route as AuthenticatedTestRidesRouteImport } from './routes/_authenticated/test-rides'
 import { Route as AuthenticatedVehiclesRouteImport } from './routes/_authenticated/vehicles'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
@@ -98,6 +99,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedStaffRoute = AuthenticatedStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedTestRidesRoute = AuthenticatedTestRidesRouteImport.update({
   id: '/test-rides',
   path: '/test-rides',
@@ -140,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/leads': typeof AuthenticatedLeadsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/staff': typeof AuthenticatedStaffRoute
   '/test-rides': typeof AuthenticatedTestRidesRoute
   '/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -160,6 +167,7 @@ export interface FileRoutesByTo {
   '/leads': typeof AuthenticatedLeadsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/staff': typeof AuthenticatedStaffRoute
   '/test-rides': typeof AuthenticatedTestRidesRoute
   '/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/staff': typeof AuthenticatedStaffRoute
   '/_authenticated/test-rides': typeof AuthenticatedTestRidesRoute
   '/_authenticated/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -204,6 +213,7 @@ export interface FileRouteTypes {
     | '/leads'
     | '/reports'
     | '/settings'
+    | '/staff'
     | '/test-rides'
     | '/vehicles'
     | '/api/transcribe'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/leads'
     | '/reports'
     | '/settings'
+    | '/staff'
     | '/test-rides'
     | '/vehicles'
     | '/api/transcribe'
@@ -245,6 +256,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leads'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
+    | '/_authenticated/staff'
     | '/_authenticated/test-rides'
     | '/_authenticated/vehicles'
     | '/api/transcribe'
@@ -362,6 +374,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/staff': {
+      id: '/_authenticated/staff'
+      path: '/staff'
+      fullPath: '/staff'
+      preLoaderRoute: typeof AuthenticatedStaffRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/test-rides': {
       id: '/_authenticated/test-rides'
       path: '/test-rides'
@@ -409,6 +428,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
   AuthenticatedTestRidesRoute: typeof AuthenticatedTestRidesRoute
   AuthenticatedVehiclesRoute: typeof AuthenticatedVehiclesRoute
   AuthenticatedQuotationsNewRoute: typeof AuthenticatedQuotationsNewRoute
@@ -424,6 +444,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedStaffRoute: AuthenticatedStaffRoute,
   AuthenticatedTestRidesRoute: AuthenticatedTestRidesRoute,
   AuthenticatedVehiclesRoute: AuthenticatedVehiclesRoute,
   AuthenticatedQuotationsNewRoute: AuthenticatedQuotationsNewRoute,

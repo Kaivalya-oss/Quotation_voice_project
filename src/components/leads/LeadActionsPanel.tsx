@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CalendarClock, History, Loader2, MessageSquareText } from "lucide-react";
@@ -14,19 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  createFollowUp,
-  getLead,
-  listFollowUps,
-  transitionLeadStatus,
-} from "@/services/repository";
+import { LeadStageActions } from "@/components/leads/LeadStageActions";
+import { useCanManageLead } from "@/hooks/use-can-manage-lead";
+import { createFollowUp, getLead, listFollowUps } from "@/services/repository";
 import {
   FOLLOWUP_TYPES,
-  LEAD_STATUSES,
   enumLabel,
   leadStatusStyles,
   type FollowupType,
-  type LeadResponse,
   type LeadStatus,
 } from "@/lib/lead-types";
 
@@ -41,8 +36,8 @@ function defaultFollowupSlot(): string {
 
 /**
  * Records customer responses against a lead and schedules follow-ups.
- * Status changes go through POST /leads/{id}/status; the backend state machine decides
- * which transitions are valid and its error message is shown as-is when one is rejected.
+ * Stage changes are offered by LeadStageActions (only valid next stages; the backend
+ * state machine stays authoritative).
  */
 export function LeadActionsPanel({ leadId }: { leadId: number }) {
   const queryClient = useQueryClient();
@@ -57,35 +52,14 @@ export function LeadActionsPanel({ leadId }: { leadId: number }) {
   });
 
   const lead = leadQuery.data;
-
-  // Response / status transition
-  const [toStatus, setToStatus] = useState<LeadStatus | "">("");
-  const [reason, setReason] = useState("");
-  const [transitionError, setTransitionError] = useState<string | null>(null);
-
-  const transitionMutation = useMutation({
-    mutationFn: () =>
-      transitionLeadStatus(leadId, {
-        to_status: toStatus as LeadStatus,
-        reason: reason.trim() || null,
-      }),
-    onSuccess: (updated: LeadResponse) => {
-      // The transition response can carry a stale status_history (backend returns the
-      // session-cached collection), so refetch the lead rather than trusting the payload.
-      queryClient.invalidateQueries({ queryKey: ["lead", leadId] });
-      queryClient.invalidateQueries({ queryKey: ["leads"] });
-      toast.success(`Lead moved to ${enumLabel(updated.status)}`);
-      setToStatus("");
-      setReason("");
-      setTransitionError(null);
-    },
-    onError: (err: Error) => setTransitionError(err.message),
-  });
+  const canManage = useCanManageLead(lead);
 
   // Follow-up scheduling
   const [fuType, setFuType] = useState<FollowupType>("CALL");
   const [fuAt, setFuAt] = useState(defaultFollowupSlot);
   const [fuNotes, setFuNotes] = useState("");
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const fuInFlight = useRef(false);
 
   const followupMutation = useMutation({
     mutationFn: () =>
@@ -98,11 +72,29 @@ export function LeadActionsPanel({ leadId }: { leadId: number }) {
     onSuccess: () => {
       toast.success("Follow-up scheduled");
       setFuNotes("");
+      setSuggestion(null);
       queryClient.invalidateQueries({ queryKey: ["followups"] });
       queryClient.invalidateQueries({ queryKey: ["lead", leadId] });
     },
     onError: (err: Error) => toast.error(err.message),
+    onSettled: () => {
+      fuInFlight.current = false;
+    },
   });
+
+  const scheduleFollowup = () => {
+    if (fuInFlight.current || !fuAt) return;
+    fuInFlight.current = true;
+    followupMutation.mutate();
+  };
+
+  const onTransitioned = (_lead: unknown, toStatus: LeadStatus) => {
+    if (toStatus === "TEST_RIDE") {
+      setFuType("VISIT");
+      setFuNotes("Test ride at showroom");
+      setSuggestion("Schedule the test ride visit below.");
+    }
+  };
 
   if (leadQuery.isLoading) {
     return (
@@ -132,6 +124,11 @@ export function LeadActionsPanel({ leadId }: { leadId: number }) {
             Interested in {lead.interested_variant.name}
           </span>
         )}
+        {lead.assigned_salesperson && (
+          <span className="text-sm text-muted-foreground">
+            · {lead.assigned_salesperson.full_name}
+          </span>
+        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -140,46 +137,10 @@ export function LeadActionsPanel({ leadId }: { leadId: number }) {
           <h4 className="font-medium flex items-center gap-2">
             <MessageSquareText className="size-4" /> Record customer response
           </h4>
-          <div className="space-y-2">
-            <Label>Move lead to</Label>
-            <Select value={toStatus} onValueChange={(v) => setToStatus(v as LeadStatus)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select next stage" />
-              </SelectTrigger>
-              <SelectContent>
-                {LEAD_STATUSES.filter((s) => s !== lead.status).map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {enumLabel(s)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>What did the customer say?</Label>
-            <Textarea
-              rows={3}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Called back, wants a test ride on Saturday"
-            />
-          </div>
-          {transitionError && (
-            <p className="text-sm text-destructive" role="alert">
-              {transitionError}
-            </p>
-          )}
-          <Button
-            className="w-full"
-            disabled={!toStatus || transitionMutation.isPending}
-            onClick={() => transitionMutation.mutate()}
-          >
-            {transitionMutation.isPending && <Loader2 className="size-4 mr-2 animate-spin" />}
-            Update stage
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            Allowed stage changes are enforced by the server's sales pipeline rules.
+          <p className="text-sm text-muted-foreground">
+            Choose what happened. Only the stages allowed from {enumLabel(lead.status)} are shown.
           </p>
+          <LeadStageActions lead={lead} onTransitioned={onTransitioned} />
         </div>
 
         {/* Schedule follow-up */}
@@ -187,6 +148,7 @@ export function LeadActionsPanel({ leadId }: { leadId: number }) {
           <h4 className="font-medium flex items-center gap-2">
             <CalendarClock className="size-4" /> Schedule follow-up
           </h4>
+          {suggestion && <p className="text-sm text-primary">{suggestion}</p>}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Type</Label>
@@ -220,8 +182,8 @@ export function LeadActionsPanel({ leadId }: { leadId: number }) {
           <Button
             variant="secondary"
             className="w-full"
-            disabled={!fuAt || followupMutation.isPending}
-            onClick={() => followupMutation.mutate()}
+            disabled={!canManage || !fuAt || followupMutation.isPending}
+            onClick={scheduleFollowup}
           >
             {followupMutation.isPending && <Loader2 className="size-4 mr-2 animate-spin" />}
             Schedule follow-up

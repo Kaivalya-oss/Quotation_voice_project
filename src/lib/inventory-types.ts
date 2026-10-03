@@ -33,8 +33,34 @@ export interface InventoryUnitUpdate {
   notes?: string | null | undefined;
 }
 
+export const INVENTORY_STATUS_LABEL: Record<InventoryStatus, string> = {
+  AVAILABLE: "Available",
+  RESERVED: "Reserved",
+  SOLD: "Sold",
+  SERVICE: "Service",
+  IN_TRANSIT: "In Transit",
+};
+
+/** States a new unit may start in (RESERVED/SOLD are reached through the workflow). */
+export const INITIAL_INVENTORY_STATUSES: InventoryStatus[] = ["AVAILABLE", "IN_TRANSIT", "SERVICE"];
+
+/**
+ * Status changes allowed from the edit form, mirroring the backend
+ * (app/services/inventory_service.py INVENTORY_STATUS_TRANSITIONS). Reserving and releasing
+ * use the dedicated Reserve/Release actions. The backend rejects anything else.
+ */
+export const INVENTORY_STATUS_TRANSITIONS: Record<InventoryStatus, InventoryStatus[]> = {
+  AVAILABLE: ["SOLD", "SERVICE", "IN_TRANSIT"],
+  RESERVED: ["SOLD"],
+  IN_TRANSIT: ["AVAILABLE", "SERVICE"],
+  SERVICE: ["AVAILABLE", "IN_TRANSIT"],
+  SOLD: [],
+};
+
 export interface InventoryUnitResponse extends InventoryUnitBase {
   id: number;
+  reserved_by_user_id?: number | null;
+  reserved_at?: string | null;
   variant?: VariantResponse | null;
   created_at: string;
   updated_at: string;

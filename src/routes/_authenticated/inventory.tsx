@@ -48,11 +48,14 @@ import {
   releaseInventoryUnit,
   listVehicles,
 } from "@/services/repository";
-import type {
-  InventoryStatus,
-  InventoryUnitCreate,
-  InventoryUnitUpdate,
-  InventoryUnitResponse,
+import {
+  INITIAL_INVENTORY_STATUSES,
+  INVENTORY_STATUS_LABEL,
+  INVENTORY_STATUS_TRANSITIONS,
+  type InventoryStatus,
+  type InventoryUnitCreate,
+  type InventoryUnitUpdate,
+  type InventoryUnitResponse,
 } from "@/lib/inventory-types";
 
 export const Route = createFileRoute("/_authenticated/inventory")({
@@ -714,11 +717,11 @@ function InventoryPage() {
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="AVAILABLE">Available</SelectItem>
-                      <SelectItem value="RESERVED">Reserved</SelectItem>
-                      <SelectItem value="IN_TRANSIT">In Transit</SelectItem>
-                      <SelectItem value="SERVICE">Service</SelectItem>
-                      <SelectItem value="SOLD">Sold</SelectItem>
+                      {INITIAL_INVENTORY_STATUSES.map((st) => (
+                        <SelectItem key={st} value={st}>
+                          {INVENTORY_STATUS_LABEL[st]}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -835,13 +838,21 @@ function InventoryPage() {
                         <SelectValue placeholder="Status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="AVAILABLE">Available</SelectItem>
-                        <SelectItem value="RESERVED">Reserved</SelectItem>
-                        <SelectItem value="SOLD">Sold</SelectItem>
-                        <SelectItem value="SERVICE">Service</SelectItem>
-                        <SelectItem value="IN_TRANSIT">In Transit</SelectItem>
+                        {editUnit &&
+                          [
+                            editUnit.status as InventoryStatus,
+                            ...(INVENTORY_STATUS_TRANSITIONS[editUnit.status as InventoryStatus] ?? []),
+                          ].map((st) => (
+                            <SelectItem key={st} value={st}>
+                              {INVENTORY_STATUS_LABEL[st] ?? st}
+                              {st === editUnit.status ? " (current)" : ""}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Use Reserve / Release for reservations. Sold units cannot change status.
+                    </p>
                   </div>
                 </div>
 
