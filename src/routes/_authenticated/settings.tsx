@@ -21,7 +21,7 @@ import { useTheme } from "@/hooks/use-theme";
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — VoiceQuote AI" },
+      { title: "Settings — Voice Quote" },
       { name: "description", content: "Company, GST, template, WhatsApp and AI configuration." },
     ],
   }),
@@ -67,7 +67,7 @@ function SettingsPage() {
               <CardTitle className="text-base">Company & GST details</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
-              <Field label="Company name" defaultValue="VoiceQuote AI Pvt. Ltd." />
+              <Field label="Company name" defaultValue="Voice Quote Pvt. Ltd." />
               <Field label="GSTIN" defaultValue="27AABCV1234F1Z5" />
               <Field label="Registered address" defaultValue="Andheri East, Mumbai 400069" />
               <Field label="Default GST rate" defaultValue="18%" />

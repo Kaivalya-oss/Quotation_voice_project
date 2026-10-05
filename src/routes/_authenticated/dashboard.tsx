@@ -29,7 +29,7 @@ import { inr, monthlyQuotations, quotations, recentActivity } from "@/lib/mock-d
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard — VoiceQuote AI" },
+      { title: "Dashboard — Voice Quote" },
       { name: "description", content: "Track today's quotations, pipeline value and sales performance." },
     ],
   }),

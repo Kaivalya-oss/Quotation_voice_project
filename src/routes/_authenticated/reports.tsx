@@ -21,7 +21,7 @@ import { inr, monthlyQuotations, topExecutives, topProducts } from "@/lib/mock-d
 export const Route = createFileRoute("/_authenticated/reports")({
   head: () => ({
     meta: [
-      { title: "Analytics — VoiceQuote AI" },
+      { title: "Analytics — Voice Quote" },
       { name: "description", content: "Sales growth, revenue, top products and conversion analytics." },
     ],
   }),

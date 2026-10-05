@@ -46,7 +46,7 @@ import type { VariantCreate, VariantResponse } from "@/lib/vehicle-types";
 export const Route = createFileRoute("/_authenticated/vehicles")({
   head: () => ({
     meta: [
-      { title: "Vehicles Catalogue — VoiceQuote AI" },
+      { title: "Vehicles Catalogue — Voice Quote" },
       { name: "description", content: "Browse available vehicle models, variants, and official pricing." },
     ],
   }),

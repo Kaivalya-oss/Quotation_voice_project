@@ -71,7 +71,7 @@ import {
 } from "@/lib/lead-types";
 
 export const Route = createFileRoute("/_authenticated/quotations/new")({
-  head: () => ({ meta: [{ title: "New Quotation — VoiceQuote AI" }] }),
+  head: () => ({ meta: [{ title: "New Quotation — Voice Quote" }] }),
   component: NewQuotationPage,
 });
 

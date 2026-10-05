@@ -12,9 +12,9 @@ import { api, ApiError, tokenStorage } from "@/lib/api";
 import type { TokenResponse, UserResponse } from "@/lib/auth-types";
 import { authQueryKey } from "@/hooks/use-auth";
 
-const title = "Create account — VoiceQuote AI";
+const title = "Create account — Voice Quote";
 const description =
-  "Create your VoiceQuote AI account and start generating quotations with your voice.";
+  "Create your Voice Quote account and start generating quotations with your voice.";
 
 export const Route = createFileRoute("/register")({
   head: () => ({

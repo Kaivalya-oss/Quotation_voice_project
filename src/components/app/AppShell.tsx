@@ -90,13 +90,6 @@ function SidebarBody({ onNavigate }: { onNavigate?: (() => void) | undefined }) 
         <NavLinks onNavigate={onNavigate} />
       </div>
       <div className="p-3">
-        <div className="glass-card rounded-2xl p-4">
-          <p className="text-xs font-semibold">AI credits</p>
-          <p className="mt-1 text-xs text-muted-foreground">1,240 of 2,000 voice minutes used</p>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
-            <div className="h-full w-[62%] rounded-full bg-primary" />
-          </div>
-        </div>
         <button
           onClick={() => void signOut()}
           className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"

@@ -51,7 +51,7 @@ export const Route = createFileRoute("/_authenticated/quotations/")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "Quotations — VoiceQuote AI" },
+      { title: "Quotations — Voice Quote" },
       {
         name: "description",
         content: "Search, filter and share every quotation your dealership has created.",

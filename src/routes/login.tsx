@@ -13,9 +13,9 @@ import { api, ApiError, tokenStorage } from "@/lib/api";
 import type { TokenResponse } from "@/lib/auth-types";
 import { authQueryKey } from "@/hooks/use-auth";
 
-const title = "Sign in — VoiceQuote AI";
+const title = "Sign in — Voice Quote";
 const description =
-  "Sign in to your VoiceQuote AI workspace to create and manage voice-generated quotations.";
+  "Sign in to your Voice Quote workspace to create and manage voice-generated quotations.";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -84,7 +84,7 @@ function LoginPage() {
       subtitle="Sign in to your sales workspace."
       footer={
         <>
-          New to VoiceQuote AI?{" "}
+          New to Voice Quote?{" "}
           <Link to="/register" className="font-medium text-primary hover:underline">
             Create an account
           </Link>

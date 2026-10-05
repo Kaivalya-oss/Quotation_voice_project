@@ -51,7 +51,7 @@ import type { QuotationResponse, QuotationItemResponse } from "@/lib/quotation-t
 export const Route = createFileRoute("/_authenticated/customers")({
   head: () => ({
     meta: [
-      { title: "Customers — VoiceQuote AI" },
+      { title: "Customers — Voice Quote" },
       { name: "description", content: "Customer profiles, contact details and quotation history." },
     ],
   }),

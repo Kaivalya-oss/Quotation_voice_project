@@ -9,7 +9,7 @@ import {
   Workflow,
 } from "@/components/landing/Sections";
 
-const title = "VoiceQuote AI: Voice-Based Quotation Management";
+const title = "Voice Quote: Voice-Based Quotation Management";
 const description =
   "Speak naturally and let AI generate professional quotations instantly, deliver them on WhatsApp, and store every record automatically.";
 

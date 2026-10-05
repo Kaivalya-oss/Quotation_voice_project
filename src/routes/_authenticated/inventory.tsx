@@ -61,7 +61,7 @@ import {
 export const Route = createFileRoute("/_authenticated/inventory")({
   head: () => ({
     meta: [
-      { title: "Inventory Management — VoiceQuote AI" },
+      { title: "Inventory Management — Voice Quote" },
       { name: "description", content: "Manage physical vehicle units, showroom stock, and atomic reservations." },
     ],
   }),

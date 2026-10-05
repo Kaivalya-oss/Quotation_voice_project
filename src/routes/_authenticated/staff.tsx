@@ -19,6 +19,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import type { UserResponse } from "@/lib/auth-types";
 import { enumLabel } from "@/lib/lead-types";
+import { api } from "@/lib/api";
 import { activateUser, changeUserRole, deactivateUser, listUsers } from "@/services/repository";
 
 export const Route = createFileRoute("/_authenticated/staff")({
@@ -41,6 +42,12 @@ function StaffPage() {
     queryKey: ["users", filter],
     queryFn: () => listUsers({ isActive: filter === "all" ? undefined : filter === "active" }),
     enabled: isManager,
+  });
+
+  const syncSheets = useMutation({
+    mutationFn: () => api.post<{ success: boolean; rows_synced: number }>("/api/v1/integrations/google-sheets/sync"),
+    onSuccess: (data) => toast.success(`Sync successful: ${data.rows_synced} rows synced`),
+    onError: (err: Error) => toast.error(`Sync failed: ${err.message}`),
   });
 
   const action = useMutation({
@@ -85,10 +92,23 @@ function StaffPage() {
 
   return (
     <div className="animate-fade-up space-y-6">
-      <PageHeader
-        title="Staff"
-        description="Approve new sign-ups and manage who can access the sales workspace."
-      />
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <PageHeader
+          title="Staff"
+          description="Approve new sign-ups and manage who can access the sales workspace."
+        />
+        {isManager && (
+          <Button 
+            variant="outline" 
+            onClick={() => syncSheets.mutate()} 
+            disabled={syncSheets.isPending}
+            className="shrink-0 gap-2"
+          >
+            {syncSheets.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+            {syncSheets.isPending ? "Syncing..." : "Sync Google Sheets"}
+          </Button>
+        )}
+      </div>
       <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
         <TabsList>
           <TabsTrigger value="pending">Pending / inactive</TabsTrigger>

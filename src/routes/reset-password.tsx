@@ -14,8 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 
-const title = "Set a new password — VoiceQuote AI";
-const description = "Choose a new password for your VoiceQuote AI account.";
+const title = "Set a new password — Voice Quote";
+const description = "Choose a new password for your Voice Quote account.";
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,

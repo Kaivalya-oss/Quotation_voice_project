@@ -14,8 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 
-const title = "Reset password — VoiceQuote AI";
-const description = "Request a secure link to reset your VoiceQuote AI password.";
+const title = "Reset password — Voice Quote";
+const description = "Request a secure link to reset your Voice Quote password.";
 
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({

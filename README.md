@@ -1,6 +1,6 @@
 # Vocal Quoter
 
-Project Name: VoiceQuote AI – AI Powered Voice-Based Quotation Management System
+Project Name: Voice Quote – AI Powered Voice-Based Quotation Management System
 
 Prompt
 

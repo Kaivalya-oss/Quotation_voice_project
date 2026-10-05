@@ -70,7 +70,7 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-border">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p>© 2026 VoiceQuote AI Technologies Pvt. Ltd. All rights reserved.</p>
+          <p>© 2026 Voice Quote Technologies Pvt. Ltd. All rights reserved.</p>
           <Link to="/login" className="hover:text-primary">
             Sales executive login
           </Link>
