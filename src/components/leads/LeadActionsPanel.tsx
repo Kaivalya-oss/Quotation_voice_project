@@ -92,7 +92,7 @@ export function LeadActionsPanel({ leadId }: { leadId: number }) {
     if (toStatus === "TEST_RIDE") {
       setFuType("VISIT");
       setFuNotes("Test ride at showroom");
-      setSuggestion("Schedule the test ride visit below.");
+      setSuggestion("This customer now appears on the Test Rides page — book their ride slot there.");
     }
   };
 

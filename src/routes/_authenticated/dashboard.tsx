@@ -21,6 +21,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { PageHeader } from "@/components/app/AppShell";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -53,17 +54,20 @@ const tooltipStyle = {
 };
 
 function Dashboard() {
+  const { canSell } = useAuth();
   return (
     <div className="animate-fade-up space-y-6">
       <PageHeader
         title="Good morning, Priya"
         description="Here's what's happening across your quotation pipeline today."
         actions={
-          <Button asChild className="rounded-full shrink-0">
-            <Link to="/quotations/new">
-              <Mic className="size-4" /> New Quotation
-            </Link>
-          </Button>
+          canSell ? (
+            <Button asChild className="rounded-full shrink-0">
+              <Link to="/quotations/new">
+                <Mic className="size-4" /> New Quotation
+              </Link>
+            </Button>
+          ) : undefined
         }
       />
 

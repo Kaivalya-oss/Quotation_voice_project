@@ -17,6 +17,7 @@ import {
   Languages,
 } from "lucide-react";
 import { PageHeader } from "@/components/app/AppShell";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -79,6 +80,7 @@ function formatDate(iso: string): string {
 
 function CustomersPage() {
   const queryClient = useQueryClient();
+  const { canSell, isManager } = useAuth();
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
@@ -247,15 +249,17 @@ function CustomersPage() {
         title="Customers"
         description="Every customer, contact details, and quotation history from PostgreSQL."
         actions={
-          <Button
-            onClick={() => {
-              resetForm();
-              setIsAddOpen(true);
-            }}
-            className="shrink-0 rounded-full"
-          >
-            <UserPlus className="mr-1.5 size-4" /> Add customer
-          </Button>
+          canSell ? (
+            <Button
+              onClick={() => {
+                resetForm();
+                setIsAddOpen(true);
+              }}
+              className="shrink-0 rounded-full"
+            >
+              <UserPlus className="mr-1.5 size-4" /> Add customer
+            </Button>
+          ) : undefined
         }
       />
 
@@ -337,22 +341,26 @@ function CustomersPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEdit(activeCustomer)}
-                      className="rounded-full h-8"
-                    >
-                      <Pencil className="size-3.5 mr-1" /> Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsDeleteOpen(true)}
-                      className="rounded-full h-8 text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="size-3.5 mr-1" /> Delete
-                    </Button>
+                    {canSell && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEdit(activeCustomer)}
+                        className="rounded-full h-8"
+                      >
+                        <Pencil className="size-3.5 mr-1" /> Edit
+                      </Button>
+                    )}
+                    {isManager && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsDeleteOpen(true)}
+                        className="rounded-full h-8 text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="size-3.5 mr-1" /> Delete
+                      </Button>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">

@@ -257,6 +257,23 @@ export interface WhatsAppDispatchResponse {
   delivery: WhatsAppDeliveryResult;
 }
 
+/** Response for POST /api/v1/quotations/{id}/send-email (after envelope unwrap) */
+export interface EmailDispatchResponse {
+  /** True only when the email was really handed to the mail server. */
+  delivered: boolean;
+  /** True when the server has no SMTP credentials and nothing was sent. */
+  simulated: boolean;
+  status: "SENT" | "SIMULATED";
+  recipient: string;
+  quotation_number: string;
+  quotation_status: BackendQuotationStatus;
+  /** Whether the admin notice email was sent too. */
+  admin_notified: boolean;
+  /** Whether the quotation PDF was attached. */
+  attachment: boolean;
+  note?: string;
+}
+
 /** True only when the backend reports a real provider delivery, never for MOCK_SENT */
 export function isRealWhatsAppDelivery(res: WhatsAppDispatchResponse | null | undefined): boolean {
   return res?.delivered === true && res.delivery?.status === "SENT";

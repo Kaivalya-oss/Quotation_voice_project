@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Mic, MoreHorizontal, Search, Send } from "lucide-react";
+import { Download, Mail, Mic, MoreHorizontal, Search, Send } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { PageHeader } from "@/components/app/AppShell";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ import {
   updateQuotationStatus,
   downloadQuotationPdf,
   sendQuotationWhatsApp,
+  sendQuotationEmail,
 } from "@/services/repository";
 import type {
   QuotationResponse,
@@ -95,6 +97,7 @@ const statusLabel = (s: string) => {
 function QuotationsPage() {
   const { q } = Route.useSearch();
   const queryClient = useQueryClient();
+  const { canSell } = useAuth();
   const [query, setQuery] = useState(q ?? "");
   const [status, setStatus] = useState<BackendQuotationStatus | "all">("all");
   const [page, setPage] = useState(1);
@@ -157,6 +160,29 @@ function QuotationsPage() {
     }
   };
 
+  const handleEmail = async (row: QuotationResponse) => {
+    if (!row.customer?.email) {
+      toast.error("This customer has no email address. Add one on the Customers page first.");
+      return;
+    }
+    setBusyId(row.id);
+    try {
+      const res = await sendQuotationEmail(row.id);
+      if (res.delivered) {
+        toast.success(
+          `Quotation emailed to ${res.recipient}${res.admin_notified ? "; admin notified" : ""}.`,
+        );
+      } else {
+        toast.warning(`Email NOT sent — simulated only. ${res.note ?? ""}`);
+      }
+      invalidate();
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const exportCsv = () => {
     if (items.length === 0) return;
     const header = ["Quotation", "Customer", "Vehicle", "Date", "Status", "Amount"];
@@ -179,11 +205,13 @@ function QuotationsPage() {
         title="Quotations"
         description={`${total} quotation${total === 1 ? "" : "s"} found`}
         actions={
-          <Button asChild className="shrink-0 rounded-full">
-            <Link to="/quotations/new">
-              <Mic className="size-4" /> New
-            </Link>
-          </Button>
+          canSell ? (
+            <Button asChild className="shrink-0 rounded-full">
+              <Link to="/quotations/new">
+                <Mic className="size-4" /> New
+              </Link>
+            </Button>
+          ) : undefined
         }
       />
 
@@ -293,6 +321,9 @@ function QuotationsPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => void handleWhatsApp(row)}>
                               <Send className="size-4" /> Send on WhatsApp
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => void handleEmail(row)}>
+                              <Mail className="size-4" /> Send by Email
                             </DropdownMenuItem>
                             {(QUOTATION_STATUS_TRANSITIONS[row.status] ?? []).map((s) => (
                               <DropdownMenuItem

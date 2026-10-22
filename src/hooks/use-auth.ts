@@ -44,6 +44,9 @@ export function useAuth() {
     rawRoleName === "ADMIN" ||
     rawRoleName === "DEALER_OWNER" ||
     rawRoleName === "INVENTORY_MANAGER";
+  // Mirrors the backend's SALES_ROLES: only these roles may create customers and quotations.
+  const canSell =
+    rawRoleName === "ADMIN" || rawRoleName === "DEALER_OWNER" || rawRoleName === "SALES_EXECUTIVE";
   const canManageFinance =
     rawRoleName === "ADMIN" ||
     rawRoleName === "DEALER_OWNER" ||
@@ -72,6 +75,7 @@ export function useAuth() {
     isManager,
     canManageInventory,
     canManageFinance,
+    canSell,
     refetch,
   };
 }

@@ -10,6 +10,7 @@ import type {
   PaginatedQuotations,
   BackendQuotationStatus,
   WhatsAppDispatchResponse,
+  EmailDispatchResponse,
   BackendOfferResponse,
 } from "@/lib/quotation-types";
 import type {
@@ -50,6 +51,12 @@ import type {
   FollowupStatus,
   PaginatedFollowups,
 } from "@/lib/lead-types";
+import type {
+  PaginatedTestRides,
+  TestRideCreate,
+  TestRideResponse,
+  TestRideStatus,
+} from "@/lib/test-ride-types";
 
 export type Customer = Database["public"]["Tables"]["customers"]["Row"];
 export type Vehicle = Database["public"]["Tables"]["vehicles"]["Row"];
@@ -545,6 +552,24 @@ export async function downloadQuotationPdf(id: number | string): Promise<Blob> {
   return await api.getBlob(`/api/v1/quotations/${id}/pdf`);
 }
 
+/** Email the quotation PDF to the customer (or `email`, when given) and notify the admin. */
+export async function sendQuotationEmail(
+  id: number | string,
+  email?: string,
+): Promise<EmailDispatchResponse> {
+  return await api.post<EmailDispatchResponse>(
+    `/api/v1/quotations/${id}/send-email`,
+    email ? { email } : {},
+    { timeoutMs: 45_000 },
+  );
+}
+
+/** Side-by-side comparison PDF of 2-3 quotations for the same customer. */
+export async function downloadComparisonPdf(ids: number[]): Promise<Blob> {
+  const qs = ids.map((id) => `ids=${encodeURIComponent(id)}`).join("&");
+  return await api.getBlob(`/api/v1/quotations/compare/pdf?${qs}`);
+}
+
 export async function sendQuotationWhatsApp(id: number | string): Promise<WhatsAppDispatchResponse> {
   return await api.post<WhatsAppDispatchResponse>(`/api/v1/quotations/${id}/send-whatsapp`);
 }
@@ -631,6 +656,57 @@ export async function cancelFollowUp(
   reason?: string | null,
 ): Promise<FollowupResponse> {
   return await api.post<FollowupResponse>(`/api/v1/followups/${id}/cancel`, { reason: reason ?? null });
+}
+
+/* ============ TEST RIDES (FastAPI REST Backend) ============ */
+
+export async function listTestRides(
+  opts: {
+    customerId?: number;
+    status?: TestRideStatus | "all";
+    page?: number;
+    pageSize?: number;
+  } = {},
+): Promise<PaginatedTestRides> {
+  const params = new URLSearchParams();
+  params.set("page", String(opts.page ?? 1));
+  params.set("page_size", String(opts.pageSize ?? 100));
+  if (opts.customerId) params.set("customer_id", String(opts.customerId));
+  if (opts.status && opts.status !== "all") params.set("status", opts.status);
+  return await api.get<PaginatedTestRides>(`/api/v1/test-rides?${params.toString()}`);
+}
+
+/** Books a slot; the backend rejects overlapping rides on the same vehicle (409). */
+export async function bookTestRide(values: TestRideCreate): Promise<TestRideResponse> {
+  return await api.post<TestRideResponse>("/api/v1/test-rides", values);
+}
+
+export async function confirmTestRide(id: number): Promise<TestRideResponse> {
+  return await api.post<TestRideResponse>(`/api/v1/test-rides/${id}/confirm`, {});
+}
+
+export async function completeTestRide(
+  id: number,
+  feedbackRating: number,
+  notes?: string | null,
+): Promise<TestRideResponse> {
+  return await api.post<TestRideResponse>(`/api/v1/test-rides/${id}/complete`, {
+    feedback_rating: feedbackRating,
+    notes: notes ?? null,
+  });
+}
+
+export async function cancelTestRide(id: number, reason?: string | null): Promise<TestRideResponse> {
+  return await api.post<TestRideResponse>(`/api/v1/test-rides/${id}/cancel`, { reason: reason ?? null });
+}
+
+/* ============ DAILY UPDATE EXPORT (FastAPI) ============ */
+
+/** One day's activity as an Excel workbook or CSV. `day` is YYYY-MM-DD (Indian time); defaults to today. */
+export async function downloadDailyExport(format: "xlsx" | "csv", day?: string): Promise<Blob> {
+  const params = new URLSearchParams({ format });
+  if (day) params.set("day", day);
+  return await api.getBlob(`/api/v1/reports/daily-export?${params.toString()}`);
 }
 
 /* ============ STAFF / USERS (FastAPI, management only) ============ */
