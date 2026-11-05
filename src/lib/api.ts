@@ -183,7 +183,11 @@ async function refreshAccessToken(): Promise<string | null> {
         return null;
       }
 
-      const refreshUrl = resolveUrl("/api/v1/auth/refresh");
+      const refreshUrl = resolveUrl(
+        import.meta.env["VITE_MULTI_TENANT"] === "true"
+          ? "/api/v1/platform/auth/refresh"
+          : "/api/v1/auth/refresh",
+      );
       const res = await fetchWithTimeout(refreshUrl, {
         method: "POST",
         headers: {
@@ -206,7 +210,8 @@ async function refreshAccessToken(): Promise<string | null> {
         if (tokenData.refresh_token) {
           tokenStorage.setRefreshToken(tokenData.refresh_token);
         }
-        if (tokenData.user) {
+        // Multi-tenant refresh returns a platform account; useAuth reloads the role from /platform/me.
+        if (tokenData.user && import.meta.env["VITE_MULTI_TENANT"] !== "true") {
           tokenStorage.setUser(tokenData.user);
         }
         return tokenData.access_token;

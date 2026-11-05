@@ -24,11 +24,17 @@ import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
+import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedTestRidesRouteImport } from './routes/_authenticated/test-rides'
 import { Route as AuthenticatedVehiclesRouteImport } from './routes/_authenticated/vehicles'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
+import { Route as ShowroomInviteRouteImport } from './routes/showroom.invite'
+import { Route as ShowroomRegisterRouteImport } from './routes/showroom.register'
 import { Route as AuthenticatedQuotationsIndexRouteImport } from './routes/_authenticated/quotations.index'
 import { Route as AuthenticatedQuotationsNewRouteImport } from './routes/_authenticated/quotations.new'
+import { Route as AuthenticatedShowroomDatabaseRouteImport } from './routes/_authenticated/showroom.database'
+import { Route as AuthenticatedShowroomSelectRouteImport } from './routes/_authenticated/showroom.select'
+import { Route as AuthenticatedShowroomSetupRouteImport } from './routes/_authenticated/showroom.setup'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -104,6 +110,11 @@ const AuthenticatedStaffRoute = AuthenticatedStaffRouteImport.update({
   path: '/staff',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTeamRoute = AuthenticatedTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedTestRidesRoute = AuthenticatedTestRidesRouteImport.update({
   id: '/test-rides',
   path: '/test-rides',
@@ -119,6 +130,16 @@ const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   path: '/api/transcribe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShowroomInviteRoute = ShowroomInviteRouteImport.update({
+  id: '/showroom/invite',
+  path: '/showroom/invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShowroomRegisterRoute = ShowroomRegisterRouteImport.update({
+  id: '/showroom/register',
+  path: '/showroom/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedQuotationsIndexRoute =
   AuthenticatedQuotationsIndexRouteImport.update({
     id: '/quotations/',
@@ -129,6 +150,24 @@ const AuthenticatedQuotationsNewRoute =
   AuthenticatedQuotationsNewRouteImport.update({
     id: '/quotations/new',
     path: '/quotations/new',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedShowroomDatabaseRoute =
+  AuthenticatedShowroomDatabaseRouteImport.update({
+    id: '/showroom/database',
+    path: '/showroom/database',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedShowroomSelectRoute =
+  AuthenticatedShowroomSelectRouteImport.update({
+    id: '/showroom/select',
+    path: '/showroom/select',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedShowroomSetupRoute =
+  AuthenticatedShowroomSetupRouteImport.update({
+    id: '/showroom/setup',
+    path: '/showroom/setup',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
@@ -147,10 +186,16 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
+  '/team': typeof AuthenticatedTeamRoute
   '/test-rides': typeof AuthenticatedTestRidesRoute
   '/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/showroom/invite': typeof ShowroomInviteRoute
+  '/showroom/register': typeof ShowroomRegisterRoute
   '/quotations/new': typeof AuthenticatedQuotationsNewRoute
+  '/showroom/database': typeof AuthenticatedShowroomDatabaseRoute
+  '/showroom/select': typeof AuthenticatedShowroomSelectRoute
+  '/showroom/setup': typeof AuthenticatedShowroomSetupRoute
   '/quotations/': typeof AuthenticatedQuotationsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -168,10 +213,16 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
+  '/team': typeof AuthenticatedTeamRoute
   '/test-rides': typeof AuthenticatedTestRidesRoute
   '/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/showroom/invite': typeof ShowroomInviteRoute
+  '/showroom/register': typeof ShowroomRegisterRoute
   '/quotations/new': typeof AuthenticatedQuotationsNewRoute
+  '/showroom/database': typeof AuthenticatedShowroomDatabaseRoute
+  '/showroom/select': typeof AuthenticatedShowroomSelectRoute
+  '/showroom/setup': typeof AuthenticatedShowroomSetupRoute
   '/quotations': typeof AuthenticatedQuotationsIndexRoute
 }
 export interface FileRoutesById {
@@ -191,10 +242,16 @@ export interface FileRoutesById {
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
+  '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/test-rides': typeof AuthenticatedTestRidesRoute
   '/_authenticated/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/showroom/invite': typeof ShowroomInviteRoute
+  '/showroom/register': typeof ShowroomRegisterRoute
   '/_authenticated/quotations/new': typeof AuthenticatedQuotationsNewRoute
+  '/_authenticated/showroom/database': typeof AuthenticatedShowroomDatabaseRoute
+  '/_authenticated/showroom/select': typeof AuthenticatedShowroomSelectRoute
+  '/_authenticated/showroom/setup': typeof AuthenticatedShowroomSetupRoute
   '/_authenticated/quotations/': typeof AuthenticatedQuotationsIndexRoute
 }
 export interface FileRouteTypes {
@@ -214,10 +271,16 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/staff'
+    | '/team'
     | '/test-rides'
     | '/vehicles'
     | '/api/transcribe'
+    | '/showroom/invite'
+    | '/showroom/register'
     | '/quotations/new'
+    | '/showroom/database'
+    | '/showroom/select'
+    | '/showroom/setup'
     | '/quotations/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -235,10 +298,16 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/staff'
+    | '/team'
     | '/test-rides'
     | '/vehicles'
     | '/api/transcribe'
+    | '/showroom/invite'
+    | '/showroom/register'
     | '/quotations/new'
+    | '/showroom/database'
+    | '/showroom/select'
+    | '/showroom/setup'
     | '/quotations'
   id:
     | '__root__'
@@ -257,10 +326,16 @@ export interface FileRouteTypes {
     | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/_authenticated/staff'
+    | '/_authenticated/team'
     | '/_authenticated/test-rides'
     | '/_authenticated/vehicles'
     | '/api/transcribe'
+    | '/showroom/invite'
+    | '/showroom/register'
     | '/_authenticated/quotations/new'
+    | '/_authenticated/showroom/database'
+    | '/_authenticated/showroom/select'
+    | '/_authenticated/showroom/setup'
     | '/_authenticated/quotations/'
   fileRoutesById: FileRoutesById
 }
@@ -272,6 +347,8 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
+  ShowroomInviteRoute: typeof ShowroomInviteRoute
+  ShowroomRegisterRoute: typeof ShowroomRegisterRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -381,6 +458,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedStaffRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/team': {
+      id: '/_authenticated/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof AuthenticatedTeamRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/test-rides': {
       id: '/_authenticated/test-rides'
       path: '/test-rides'
@@ -402,6 +486,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTranscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/showroom/invite': {
+      id: '/showroom/invite'
+      path: '/showroom/invite'
+      fullPath: '/showroom/invite'
+      preLoaderRoute: typeof ShowroomInviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/showroom/register': {
+      id: '/showroom/register'
+      path: '/showroom/register'
+      fullPath: '/showroom/register'
+      preLoaderRoute: typeof ShowroomRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/quotations/': {
       id: '/_authenticated/quotations/'
       path: '/quotations'
@@ -414,6 +512,27 @@ declare module '@tanstack/react-router' {
       path: '/quotations/new'
       fullPath: '/quotations/new'
       preLoaderRoute: typeof AuthenticatedQuotationsNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/showroom/database': {
+      id: '/_authenticated/showroom/database'
+      path: '/showroom/database'
+      fullPath: '/showroom/database'
+      preLoaderRoute: typeof AuthenticatedShowroomDatabaseRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/showroom/select': {
+      id: '/_authenticated/showroom/select'
+      path: '/showroom/select'
+      fullPath: '/showroom/select'
+      preLoaderRoute: typeof AuthenticatedShowroomSelectRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/showroom/setup': {
+      id: '/_authenticated/showroom/setup'
+      path: '/showroom/setup'
+      fullPath: '/showroom/setup'
+      preLoaderRoute: typeof AuthenticatedShowroomSetupRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
@@ -429,9 +548,13 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
+  AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
   AuthenticatedTestRidesRoute: typeof AuthenticatedTestRidesRoute
   AuthenticatedVehiclesRoute: typeof AuthenticatedVehiclesRoute
   AuthenticatedQuotationsNewRoute: typeof AuthenticatedQuotationsNewRoute
+  AuthenticatedShowroomDatabaseRoute: typeof AuthenticatedShowroomDatabaseRoute
+  AuthenticatedShowroomSelectRoute: typeof AuthenticatedShowroomSelectRoute
+  AuthenticatedShowroomSetupRoute: typeof AuthenticatedShowroomSetupRoute
   AuthenticatedQuotationsIndexRoute: typeof AuthenticatedQuotationsIndexRoute
 }
 
@@ -445,9 +568,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
+  AuthenticatedTeamRoute: AuthenticatedTeamRoute,
   AuthenticatedTestRidesRoute: AuthenticatedTestRidesRoute,
   AuthenticatedVehiclesRoute: AuthenticatedVehiclesRoute,
   AuthenticatedQuotationsNewRoute: AuthenticatedQuotationsNewRoute,
+  AuthenticatedShowroomDatabaseRoute: AuthenticatedShowroomDatabaseRoute,
+  AuthenticatedShowroomSelectRoute: AuthenticatedShowroomSelectRoute,
+  AuthenticatedShowroomSetupRoute: AuthenticatedShowroomSetupRoute,
   AuthenticatedQuotationsIndexRoute: AuthenticatedQuotationsIndexRoute,
 }
 
@@ -462,6 +589,8 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
+  ShowroomInviteRoute: ShowroomInviteRoute,
+  ShowroomRegisterRoute: ShowroomRegisterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

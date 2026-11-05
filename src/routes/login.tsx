@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { MULTI_TENANT, platformLogin, storeSession } from "@/lib/platform";
 import { signInSchema } from "@/lib/validators";
 import { api, ApiError, tokenStorage } from "@/lib/api";
 import type { TokenResponse } from "@/lib/auth-types";
@@ -56,6 +57,15 @@ function LoginPage() {
 
     setLoading(true);
     try {
+      if (MULTI_TENANT) {
+        const tokens = await platformLogin(parsed.data.email, parsed.data.password);
+        storeSession(tokens);
+        await queryClient.invalidateQueries({ queryKey: authQueryKey });
+        toast.success("Welcome back");
+        navigate({ to: tokens.active_tenant ? "/dashboard" : "/showroom/select", replace: true });
+        return;
+      }
+
       const result = await api.post<TokenResponse>(
         "/api/v1/auth/login",
         {
@@ -85,8 +95,11 @@ function LoginPage() {
       footer={
         <>
           New to Voice Quote?{" "}
-          <Link to="/register" className="font-medium text-primary hover:underline">
-            Create an account
+          <Link
+            to={MULTI_TENANT ? "/showroom/register" : "/register"}
+            className="font-medium text-primary hover:underline"
+          >
+            {MULTI_TENANT ? "Register your showroom" : "Create an account"}
           </Link>
         </>
       }

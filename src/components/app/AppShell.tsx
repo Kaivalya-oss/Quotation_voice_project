@@ -18,6 +18,7 @@ import {
   FileText,
   PieChart,
 } from "lucide-react";
+import { MULTI_TENANT, TENANT_ROLE_LABEL, type TenantRole } from "@/lib/platform";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -53,16 +54,22 @@ const nav = [
   { to: "/test-rides", label: "Test Rides", icon: MapPin },
   { to: "/follow-ups", label: "Follow-ups", icon: Bell },
   { to: "/reports", label: "Reports", icon: PieChart },
-  { to: "/staff", label: "Staff", icon: Users, managerOnly: true },
+  { to: "/staff", label: "Staff", icon: Users, managerOnly: true, singleShowroomOnly: true },
+  { to: "/team", label: "Team", icon: Users, managerOnly: true, multiTenantOnly: true },
+  { to: "/showroom/database", label: "Database", icon: Settings, ownerOnly: true, multiTenantOnly: true },
+  { to: "/showroom/select", label: "Switch showroom", icon: MapPin, multiTenantOnly: true },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
-  const { isManager } = useAuth();
+  const { isManager, hasRole } = useAuth();
   return (
     <nav className="flex flex-col gap-1 p-3" aria-label="Sidebar">
       {nav
         .filter((item) => isManager || !("managerOnly" in item && item.managerOnly))
+        .filter((item) => hasRole("OWNER") || !("ownerOnly" in item && item.ownerOnly))
+        .filter((item) => !(MULTI_TENANT && "singleShowroomOnly" in item && item.singleShowroomOnly))
+        .filter((item) => MULTI_TENANT || !("multiTenantOnly" in item && item.multiTenantOnly))
         .map(({ to, label, icon: Icon, ...rest }) => (
         <Link
           key={to}
@@ -145,7 +152,9 @@ export function AppShell() {
     .join("")
     .slice(0, 2)
     .toUpperCase();
-  const roleLabel = roles[0] ? ROLE_LABEL[roles[0]] : "Team member";
+  const roleLabel = roles[0]
+    ? (ROLE_LABEL[roles[0]] ?? TENANT_ROLE_LABEL[roles[0].toUpperCase() as TenantRole])
+    : "Team member";
 
   return (
     <div className="flex min-h-screen bg-background">
