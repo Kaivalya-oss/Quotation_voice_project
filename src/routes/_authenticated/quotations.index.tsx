@@ -277,33 +277,62 @@ function QuotationsPage() {
                     </TableRow>
                   ))}
                 {!listQuery.isLoading &&
-                  items.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell className="font-medium">{row.quotation_number}</TableCell>
-                      <TableCell>
-                        <div className="font-medium">{row.customer?.full_name ?? "—"}</div>
-                        {row.customer?.phone && (
-                          <div className="text-xs text-muted-foreground">{row.customer.phone}</div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {row.variant?.name ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(row.created_at).toLocaleDateString("en-IN")}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={statusStyles[row.status] ?? "bg-muted text-muted-foreground"}
-                          variant="secondary"
-                        >
-                          {statusLabel(row.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {inr(Number(row.final_price))}
-                      </TableCell>
-                      <TableCell className="text-right">
+                  items.map((row) => {
+                    const vehicleItems = (row.items ?? []).filter((it) => it.item_type === "VEHICLE_OPTION");
+                    const isComparison = vehicleItems.length >= 2;
+                    const optAName = vehicleItems[0]?.details_json?.variant_name ?? vehicleItems[0]?.item_name?.replace(/^Option A:\s*/, "") ?? row.variant?.name ?? "—";
+                    const optBName = vehicleItems[1]?.details_json?.variant_name ?? vehicleItems[1]?.item_name?.replace(/^Option B:\s*/, "") ?? "—";
+                    const optAPrice = vehicleItems[0] ? Number(vehicleItems[0].total_price) : Number(row.final_price);
+                    const optBPrice = vehicleItems[1] ? Number(vehicleItems[1].total_price) : null;
+
+                    return (
+                      <TableRow key={row.id}>
+                        <TableCell className="font-medium">
+                          {row.quotation_number}
+                          {isComparison && (
+                            <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0 border-primary/40 text-primary">
+                              Compare
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{row.customer?.full_name ?? "—"}</div>
+                          {row.customer?.phone && (
+                            <div className="text-xs text-muted-foreground">{row.customer.phone}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {isComparison ? (
+                            <div>
+                              <div className="font-medium text-foreground">{optAName}</div>
+                              <div className="text-xs text-muted-foreground">vs {optBName}</div>
+                            </div>
+                          ) : (
+                            row.variant?.name ?? "—"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {new Date(row.created_at).toLocaleDateString("en-IN")}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            className={statusStyles[row.status] ?? "bg-muted text-muted-foreground"}
+                            variant="secondary"
+                          >
+                            {statusLabel(row.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {isComparison && optBPrice !== null ? (
+                            <div>
+                              <div className="text-primary">{inr(optAPrice)}</div>
+                              <div className="text-xs font-normal text-muted-foreground">vs {inr(optBPrice)}</div>
+                            </div>
+                          ) : (
+                            inr(Number(row.final_price))
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -337,7 +366,8 @@ function QuotationsPage() {
                         </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 {!listQuery.isLoading && items.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">

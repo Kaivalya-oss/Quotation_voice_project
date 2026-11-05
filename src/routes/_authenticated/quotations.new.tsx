@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ import {
   Mail,
   Mic,
   Plus,
+  Printer,
   ShieldAlert,
   Send,
   Trash2,
@@ -478,89 +480,77 @@ function NewQuotationPage() {
         customerCreated = true;
       }
 
-      // 2. For each vehicle: open (or reuse) its lead, then create its quotation. Pricing,
-      // discount, EMI, number, expiry and PDF are all computed by the backend.
-      const forVehicle = async (
-        variant: VariantResponse,
-        vehicleOfferId: number | null,
-        keySuffix: string,
-        comparedWith?: string,
-      ): Promise<VehicleOutcome> => {
-        const openLeads = await listLeads({ customerId: customer!.id, pageSize: 100 });
-        let lead =
-          openLeads.items.find(
-            (l) => !CLOSED_LEAD_STATUSES.has(l.status) && l.interested_variant_id === variant.id,
-          ) ?? null;
-        let leadCreated = false;
-        let leadOwnedElsewhere = false;
-        if (!lead) {
+      // 2. Open (or reuse) lead for the selected vehicle
+      const openLeads = await listLeads({ customerId: customer!.id, pageSize: 100 });
+      let lead =
+        openLeads.items.find(
+          (l) => !CLOSED_LEAD_STATUSES.has(l.status) && l.interested_variant_id === selectedVariant.id,
+        ) ?? null;
+      let leadCreated = false;
+      let leadOwnedElsewhere = false;
+      if (!lead) {
+        try {
+          lead = await createLead({
+            customer_id: customer!.id,
+            interested_variant_id: selectedVariant.id,
+            source,
+            priority,
+            notes:
+              notes.trim() ||
+              (compareMode && vehicleB
+                ? `Comparison quotation: ${selectedVariant.name} vs ${vehicleB.variant.name}`
+                : `Quotation requested for ${selectedVariant.name}`),
+          });
+          leadCreated = true;
+        } catch (err) {
+          // The backend allows one open lead per customer + vehicle and tells us which one exists.
+          const existingLeadId =
+            err instanceof ApiError && err.code === "LEAD_ALREADY_OPEN"
+              ? (err.details as { lead_id?: number } | undefined)?.lead_id
+              : undefined;
+          if (!existingLeadId) throw err;
           try {
-            lead = await createLead({
-              customer_id: customer!.id,
-              interested_variant_id: variant.id,
-              source,
-              priority,
-              notes:
-                notes.trim() ||
-                (comparedWith
-                  ? `Comparison quotation: ${variant.name} vs ${comparedWith}`
-                  : `Quotation requested for ${variant.name}`),
-            });
-            leadCreated = true;
-          } catch (err) {
-            // The backend allows one open lead per customer + vehicle and tells us which one exists.
-            const existingLeadId =
-              err instanceof ApiError && err.code === "LEAD_ALREADY_OPEN"
-                ? (err.details as { lead_id?: number } | undefined)?.lead_id
-                : undefined;
-            if (!existingLeadId) throw err;
-            try {
-              lead = await getLead(existingLeadId);
-            } catch (lookupErr) {
-              // Another salesperson handles this lead; reads are scoped, so we cannot open it.
-              if (lookupErr instanceof ApiError && lookupErr.status === 404) leadOwnedElsewhere = true;
-              else throw lookupErr;
-            }
+            lead = await getLead(existingLeadId);
+          } catch (lookupErr) {
+            // Another salesperson handles this lead; reads are scoped, so we cannot open it.
+            if (lookupErr instanceof ApiError && lookupErr.status === 404) leadOwnedElsewhere = true;
+            else throw lookupErr;
           }
         }
-        const quotation = await createQuotation(
-          {
-            customer_id: customer!.id,
-            variant_id: variant.id,
-            accessory_ids: accessoryIds,
-            custom_items: validCustomItems,
-            offer_id: vehicleOfferId,
-            down_payment: num(downPayment),
-            loan_tenure: loanTenure,
-            interest_rate: num(interestRate),
-            notes:
-              [notes.trim(), comparedWith ? `Compared with ${comparedWith}` : ""]
-                .filter(Boolean)
-                .join(" · ") || null,
-          },
-          `${attemptKey}${keySuffix}`,
-        );
-        return { quotation, lead, leadCreated, leadOwnedElsewhere };
-      };
-
-      if (compareMode && vehicleB) {
-        const a = await forVehicle(selectedVariant, offerId, ":A", vehicleBLabel);
-        const b = await forVehicle(vehicleB.variant, offerIdB, ":B", vehicleALabel);
-        return { ...a, customer, customerCreated, compare: b };
       }
-      const single = await forVehicle(selectedVariant, offerId, "");
-      return { ...single, customer, customerCreated };
+
+      // 3. Create the ONE quotation (contains both vehicle options if comparison requested)
+      const quotation = await createQuotation(
+        {
+          customer_id: customer!.id,
+          variant_id: selectedVariant.id,
+          compare_variant_id: compareMode && vehicleB ? vehicleB.variant.id : undefined,
+          accessory_ids: accessoryIds,
+          custom_items: validCustomItems,
+          offer_id: offerId,
+          compare_offer_id: compareMode && vehicleB ? offerIdB : undefined,
+          down_payment: num(downPayment),
+          loan_tenure: loanTenure,
+          interest_rate: num(interestRate),
+          notes:
+            [
+              notes.trim(),
+              compareMode && vehicleB ? `Comparison: ${selectedVariant.name} vs ${vehicleB.variant.name}` : "",
+            ]
+              .filter(Boolean)
+              .join(" · ") || null,
+        },
+        attemptKey,
+      );
+
+      return { quotation, customer, customerCreated, lead, leadCreated, leadOwnedElsewhere };
     },
     onSuccess: (res) => {
       setResult(res);
       queryClient.invalidateQueries({ queryKey: ["quotations"] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
-      toast.success(
-        res.compare
-          ? `Comparison created: ${res.quotation.quotation_number} vs ${res.compare.quotation.quotation_number}`
-          : `Quotation ${res.quotation.quotation_number} created`,
-      );
+      toast.success(`Quotation ${res.quotation.quotation_number} created`);
     },
     onError: (err: Error) => toast.error(err.message || "Failed to create quotation."),
     onSettled: () => {
@@ -1268,31 +1258,131 @@ function ReviewSection({ title, children }: { title: string; children: React.Rea
 
 /* ============ AFTER CREATION ============ */
 
+interface VehicleOptionData {
+  label: string;
+  name: string;
+  brandName?: string;
+  modelName?: string;
+  fuelType?: string;
+  transmission?: string;
+  engineCc?: number | string | null;
+  basePrice: number;
+  insurance: number;
+  rto: number;
+  accessories: number;
+  otherCharges: number;
+  discount: number;
+  finalPrice: number;
+  downPayment: number;
+  loanAmount: number;
+  interestRate: number;
+  loanTenure: number;
+  emi: number;
+  offerTitle?: string | null;
+}
+
+function extractOptions(q: QuotationResponse): {
+  optA: VehicleOptionData;
+  optB: VehicleOptionData | null;
+  isComparison: boolean;
+} {
+  const vehicleItems = (q.items ?? []).filter((it) => it.item_type === "VEHICLE_OPTION");
+  const isComparison = vehicleItems.length >= 2;
+
+  const snapA = (vehicleItems[0]?.details_json as Record<string, any> | undefined) ?? {};
+  const optA: VehicleOptionData = {
+    label: isComparison ? "Option A" : "Vehicle",
+    name:
+      snapA.full_name ??
+      snapA.variant_name ??
+      (q.variant
+        ? `${q.variant.model?.brand?.name ?? ""} ${q.variant.model?.name ?? ""} ${q.variant.name}`.trim()
+        : vehicleItems[0]?.item_name ?? `Variant #${q.variant_id}`),
+    brandName: snapA.brand_name ?? q.variant?.model?.brand?.name,
+    modelName: snapA.model_name ?? q.variant?.model?.name,
+    fuelType: snapA.fuel_type ?? q.variant?.fuel_type,
+    transmission: snapA.transmission ?? q.variant?.transmission,
+    engineCc: snapA.engine_cc ?? q.variant?.engine_cc,
+    basePrice: num(snapA.base_price ?? q.base_price),
+    insurance: num(snapA.insurance ?? q.insurance),
+    rto: num(snapA.rto ?? q.rto),
+    accessories: num(snapA.accessories ?? q.accessories),
+    otherCharges: num(
+      snapA.other_charges ??
+        Math.max(
+          0,
+          num(q.final_price) +
+            num(q.discount) -
+            num(q.base_price) -
+            num(q.insurance) -
+            num(q.rto) -
+            num(q.accessories),
+        ),
+    ),
+    discount: num(snapA.discount ?? q.discount),
+    finalPrice: num(snapA.final_price ?? vehicleItems[0]?.total_price ?? q.final_price),
+    downPayment: num(snapA.down_payment ?? q.down_payment),
+    loanAmount: num(snapA.loan_amount ?? q.loan_amount),
+    interestRate: num(snapA.interest_rate ?? q.interest_rate),
+    loanTenure: snapA.loan_tenure ?? q.loan_tenure,
+    emi: num(snapA.emi ?? q.emi),
+    offerTitle: snapA.offer_title ?? q.offer?.title,
+  };
+
+  let optB: VehicleOptionData | null = null;
+  if (isComparison) {
+    const snapB = (vehicleItems[1]?.details_json as Record<string, any> | undefined) ?? {};
+    optB = {
+      label: "Option B",
+      name:
+        snapB.full_name ??
+        snapB.variant_name ??
+        vehicleItems[1]?.item_name?.replace(/^Option B:\s*/, "") ??
+        "Option B",
+      brandName: snapB.brand_name,
+      modelName: snapB.model_name,
+      fuelType: snapB.fuel_type,
+      transmission: snapB.transmission,
+      engineCc: snapB.engine_cc,
+      basePrice: num(snapB.base_price ?? vehicleItems[1]?.unit_price),
+      insurance: num(snapB.insurance ?? 0),
+      rto: num(snapB.rto ?? 0),
+      accessories: num(snapB.accessories ?? 0),
+      otherCharges: num(snapB.other_charges ?? 0),
+      discount: num(snapB.discount ?? 0),
+      finalPrice: num(snapB.final_price ?? vehicleItems[1]?.total_price),
+      downPayment: num(snapB.down_payment ?? q.down_payment),
+      loanAmount: num(snapB.loan_amount ?? 0),
+      interestRate: num(snapB.interest_rate ?? q.interest_rate),
+      loanTenure: snapB.loan_tenure ?? q.loan_tenure,
+      emi: num(snapB.emi ?? 0),
+      offerTitle: snapB.offer_title,
+    };
+  }
+
+  return { optA, optB, isComparison };
+}
+
 function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () => void }) {
   const { quotation: q, customer, lead } = result;
-  const compare = result.compare;
-  const allQuotes = compare ? [q, compare.quotation] : [q];
-  const vehicleOf = (x: QuotationResponse) =>
-    x.variant
-      ? `${x.variant.model?.brand?.name ?? ""} ${x.variant.model?.name ?? ""} ${x.variant.name}`.trim()
-      : `Variant #${x.variant_id}`;
+  const { optA, optB, isComparison } = extractOptions(q);
+
   const [pdfBusy, setPdfBusy] = useState(false);
   const [waResult, setWaResult] = useState<WhatsAppDispatchResponse | null>(null);
+  const [printBusy, setPrintBusy] = useState(false);
+  const [printActive, setPrintActive] = useState(false);
 
   const [emailTo, setEmailTo] = useState(customer.email ?? "");
   const [emailResult, setEmailResult] = useState<EmailDispatchResponse | null>(null);
   const emailInFlight = useRef(false);
   const emailMutation = useMutation({
     mutationFn: async () => {
-      // A comparison sends each vehicle's quotation (each with its own PDF).
-      const first = await sendQuotationEmail(q.id, emailTo.trim() || undefined);
-      if (compare && first.delivered) await sendQuotationEmail(compare.quotation.id, emailTo.trim() || undefined);
-      return first;
+      return await sendQuotationEmail(q.id, emailTo.trim() || undefined);
     },
     onSuccess: (res) => {
       setEmailResult(res);
       if (res.delivered)
-        toast.success(`${compare ? "Both quotations" : "Quotation"} emailed to ${res.recipient}`);
+        toast.success(`Quotation emailed to ${res.recipient}`);
     },
     onError: (err: Error) => toast.error(`Email not sent: ${err.message}`),
     onSettled: () => {
@@ -1312,9 +1402,7 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
   const waInFlight = useRef(false);
   const waMutation = useMutation({
     mutationFn: async () => {
-      const first = await sendQuotationWhatsApp(q.id);
-      if (compare) await sendQuotationWhatsApp(compare.quotation.id);
-      return first;
+      return await sendQuotationWhatsApp(q.id);
     },
     onSuccess: (res) => setWaResult(res),
     onError: (err: Error) => toast.error(`WhatsApp request failed: ${err.message}`),
@@ -1331,89 +1419,163 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
     }
   };
 
-  const vehicleName = q.variant
-    ? `${q.variant.model?.brand?.name ?? ""} ${q.variant.model?.name ?? ""} ${q.variant.name}`.trim()
-    : `Variant #${q.variant_id}`;
+  /** Open the browser's native print dialog for this quotation. */
+  const handlePrint = () => {
+    setPrintBusy(true);
+    setPrintActive(true);
+  };
+
+  useEffect(() => {
+    if (!printActive) return;
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const cleanup = () => {
+          setPrintActive(false);
+          setPrintBusy(false);
+          window.removeEventListener("afterprint", cleanup);
+        };
+        window.addEventListener("afterprint", cleanup);
+        window.print();
+      });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [printActive]);
 
   return (
     <div className="animate-fade-up max-w-4xl mx-auto space-y-6">
       <PageHeader
-        title={compare ? "Comparison quotation created" : "Quotation created"}
-        description="Share it with the customer and plan the next step."
+        title={isComparison ? "Comparison quotation created" : "Quotation created"}
+        description={
+          isComparison
+            ? "Two alternative vehicle options combined in one official quotation."
+            : "Share it with the customer and plan the next step."
+        }
       />
-
-      {compare && (
-        <Card className="rounded-2xl shadow-sm">
-          <CardContent className="p-6 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-lg font-semibold">Vehicle A vs vehicle B</h3>
-              <Button
-                className="gap-2"
-                disabled={pdfBusy}
-                onClick={async () => {
-                  setPdfBusy(true);
-                  try {
-                    const blob = await downloadComparisonPdf([q.id, compare.quotation.id]);
-                    downloadBlob(blob, `comparison-${q.quotation_number}-vs-${compare.quotation.quotation_number}.pdf`);
-                  } catch (err) {
-                    toast.error(`Comparison PDF unavailable: ${(err as Error).message}`);
-                  } finally {
-                    setPdfBusy(false);
-                  }
-                }}
-              >
-                <Download className="size-4" /> Download comparison PDF
-              </Button>
-            </div>
-            <ComparisonTable a={q} b={compare.quotation} vehicleOf={vehicleOf} />
-          </CardContent>
-        </Card>
-      )}
 
       <Card className="rounded-2xl shadow-sm">
         <CardContent className="p-6 space-y-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-sm text-success font-semibold flex items-center gap-1">
-                <CheckCircle2 className="size-4" /> Quotation generated
+                <CheckCircle2 className="size-4" /> {isComparison ? "Comparison quotation generated" : "Quotation generated"}
               </p>
-              <p className="text-2xl font-bold mt-1">
-                {compare ? "Vehicle A · " : ""}
-                {q.quotation_number}
-              </p>
+              <p className="text-2xl font-bold mt-1">{q.quotation_number}</p>
               <p className="text-sm text-muted-foreground">
                 {customer.full_name} · {customer.phone}
                 {result.customerCreated ? " · new customer" : " · existing customer"}
               </p>
-              <p className="text-sm text-muted-foreground">{vehicleName}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">Final price</p>
-              <p className="text-3xl font-bold text-primary">{inr(num(q.final_price))}</p>
-              {num(q.emi) > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  EMI {inr(num(q.emi))}/month × {q.loan_tenure}
+              {isComparison && optB ? (
+                <p className="text-sm font-medium text-foreground mt-1">
+                  Option A: {optA.name} <span className="text-muted-foreground">vs</span> Option B: {optB.name}
                 </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">{optA.name}</p>
               )}
             </div>
+            {!isComparison && (
+              <div className="text-right">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Final price</p>
+                <p className="text-3xl font-bold text-primary">{inr(optA.finalPrice)}</p>
+                {optA.emi > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    EMI {inr(optA.emi)}/month × {optA.loanTenure}
+                  </p>
+                )}
+              </div>
+            )}
+            {isComparison && (
+              <div className="text-right">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Valid until</p>
+                <p className="font-semibold">{q.expires_at ? new Date(q.expires_at).toLocaleDateString("en-IN") : "—"}</p>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm border-t pt-4">
-            <PriceCell label="Ex-showroom" value={q.base_price} />
-            <PriceCell label="Insurance" value={q.insurance} />
-            <PriceCell label="RTO" value={q.rto} />
-            <PriceCell label="Accessories & items" value={q.accessories} />
-            <PriceCell label="Discount" value={q.discount} />
-            <PriceCell label="Down payment" value={q.down_payment} />
-            <PriceCell label="Loan amount" value={q.loan_amount} />
-            <div>
-              <p className="text-xs text-muted-foreground">Valid until</p>
-              <p className="font-medium">
-                {q.expires_at ? new Date(q.expires_at).toLocaleDateString("en-IN") : "—"}
-              </p>
+          {isComparison && optB ? (
+            /* Comparison: Display both vehicle options side-by-side as alternative choices — NEVER SUMMED */
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Option A */}
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-primary">Option A</span>
+                    <span className="text-2xl font-bold text-primary">{inr(optA.finalPrice)}</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-base">{optA.name}</p>
+                    {optA.emi > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        EMI {inr(optA.emi)}/month × {optA.loanTenure}
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs border-t pt-2">
+                    <PriceCell label="Ex-showroom" value={optA.basePrice} />
+                    <PriceCell label="Insurance" value={optA.insurance} />
+                    <PriceCell label="RTO" value={optA.rto} />
+                    <PriceCell label="Accessories & items" value={optA.accessories} />
+                    {optA.otherCharges > 0 && <PriceCell label="Other charges" value={optA.otherCharges} />}
+                    {optA.discount > 0 && <PriceCell label="Discount" value={-optA.discount} />}
+                    <PriceCell label="Down payment" value={optA.downPayment} />
+                    <PriceCell label="Loan amount" value={optA.loanAmount} />
+                  </div>
+                </div>
+
+                {/* Option B */}
+                <div className="rounded-xl border border-secondary/30 bg-secondary/5 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-secondary">Option B</span>
+                    <span className="text-2xl font-bold text-secondary">{inr(optB.finalPrice)}</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-base">{optB.name}</p>
+                    {optB.emi > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        EMI {inr(optB.emi)}/month × {optB.loanTenure}
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs border-t pt-2">
+                    <PriceCell label="Ex-showroom" value={optB.basePrice} />
+                    <PriceCell label="Insurance" value={optB.insurance} />
+                    <PriceCell label="RTO" value={optB.rto} />
+                    <PriceCell label="Accessories & items" value={optB.accessories} />
+                    {optB.otherCharges > 0 && <PriceCell label="Other charges" value={optB.otherCharges} />}
+                    {optB.discount > 0 && <PriceCell label="Discount" value={-optB.discount} />}
+                    <PriceCell label="Down payment" value={optB.downPayment} />
+                    <PriceCell label="Loan amount" value={optB.loanAmount} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Side-by-Side Comparison Breakdown */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Side-by-Side Comparison
+                </h3>
+                <ComparisonTable a={optA} b={optB} />
+              </div>
             </div>
-          </div>
+          ) : (
+            /* Single Vehicle Breakdown */
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm border-t pt-4">
+              <PriceCell label="Ex-showroom" value={q.base_price} />
+              <PriceCell label="Insurance" value={q.insurance} />
+              <PriceCell label="RTO" value={q.rto} />
+              <PriceCell label="Accessories & items" value={q.accessories} />
+              <PriceCell label="Discount" value={q.discount} />
+              <PriceCell label="Down payment" value={q.down_payment} />
+              <PriceCell label="Loan amount" value={q.loan_amount} />
+              <div>
+                <p className="text-xs text-muted-foreground">Valid until</p>
+                <p className="font-medium">
+                  {q.expires_at ? new Date(q.expires_at).toLocaleDateString("en-IN") : "—"}
+                </p>
+              </div>
+            </div>
+          )}
 
+          {/* Action buttons: Single set of actions for this quotation */}
           <div className="flex flex-wrap gap-2 border-t pt-4">
             <Button variant="outline" asChild className="gap-2">
               <Link to="/quotations" search={{ q: q.quotation_number }}>
@@ -1437,10 +1599,15 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
             <Button
               variant="outline"
               className="gap-2"
-              disabled={pdfBusy}
-              onClick={() => withPdf((blob) => downloadBlob(blob, `${q.quotation_number}.pdf`))}
+              disabled={printBusy}
+              onClick={handlePrint}
             >
-              <Download className="size-4" /> Download PDF
+              {printBusy ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Printer className="size-4" />
+              )}
+              Print
             </Button>
             <Button
               className="gap-2"
@@ -1460,35 +1627,9 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
               ) : (
                 <Send className="size-4" />
               )}
-              Send via WhatsApp{compare ? " (both)" : ""}
+              Send via WhatsApp
             </Button>
           </div>
-          {compare && (
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-muted-foreground">
-                Vehicle B · {compare.quotation.quotation_number}:
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1"
-                disabled={pdfBusy}
-                onClick={async () => {
-                  setPdfBusy(true);
-                  try {
-                    const blob = await downloadQuotationPdf(compare.quotation.id);
-                    downloadBlob(blob, `${compare.quotation.quotation_number}.pdf`);
-                  } catch (err) {
-                    toast.error(`PDF unavailable: ${(err as Error).message}`);
-                  } finally {
-                    setPdfBusy(false);
-                  }
-                }}
-              >
-                <Download className="size-3.5" /> Download PDF
-              </Button>
-            </div>
-          )}
 
           <div className="flex flex-wrap items-end gap-2">
             <div className="min-w-[240px] flex-1 space-y-1">
@@ -1507,7 +1648,7 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
               ) : (
                 <Mail className="size-4" />
               )}
-              Send via Email{compare ? " (both)" : ""}
+              Send via Email
             </Button>
           </div>
 
@@ -1565,24 +1706,23 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
 
       <Card className="rounded-2xl shadow-sm">
         <CardContent className="p-6 space-y-4">
-          {[
-            { label: compare ? `Sales lead — vehicle A (${vehicleOf(q)})` : "Sales lead", o: result as VehicleOutcome },
-            ...(compare ? [{ label: `Sales lead — vehicle B (${vehicleOf(compare.quotation)})`, o: compare }] : []),
-          ].map(({ label, o }) => (
-            <div key={o.quotation.id} className="space-y-3 border-b pb-6 last:border-b-0 last:pb-0">
-              <div>
-                <h3 className="text-lg font-semibold">{label}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {o.leadOwnedElsewhere
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-lg font-semibold">
+                {isComparison && optB ? `Sales lead — ${optA.name} vs ${optB.name}` : `Sales lead — ${optA.name}`}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {lead?.id
+                  ? result.leadCreated
+                    ? "A new lead was opened for this enquiry."
+                    : "This quotation was added to the customer's existing open lead."
+                  : result.leadOwnedElsewhere
                     ? "This customer already has an open lead for this vehicle handled by another salesperson. The quotation is saved under your name; coordinate with them or a manager for the lead."
-                    : o.leadCreated
-                      ? "A new lead was opened for this enquiry."
-                      : "This quotation was added to the customer's existing open lead for this vehicle."}
-                </p>
-              </div>
-              {o.lead && <LeadActionsPanel leadId={o.lead.id} />}
+                    : "Quotation recorded successfully."}
+              </p>
             </div>
-          ))}
+            {lead && <LeadActionsPanel leadId={lead.id} />}
+          </div>
         </CardContent>
       </Card>
 
@@ -1594,6 +1734,13 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
           <Plus className="size-4" /> New quotation
         </Button>
       </div>
+
+      {/* Print portal — hidden from screen, visible only to @media print */}
+      {printActive &&
+        createPortal(
+          <PrintableQuotations quotation={q} customer={customer} />,
+          document.body
+        )}
     </div>
   );
 }
@@ -1744,55 +1891,332 @@ function OfferSelect({
   );
 }
 
-/** Side-by-side figures exactly as the server priced them. */
+/** Side-by-side figures for comparison quotation. */
 function ComparisonTable({
   a,
   b,
-  vehicleOf,
 }: {
-  a: QuotationResponse;
-  b: QuotationResponse;
-  vehicleOf: (q: QuotationResponse) => string;
+  a: VehicleOptionData;
+  b: VehicleOptionData;
 }) {
-  const rows: [string, (q: QuotationResponse) => string, boolean?][] = [
-    ["Quotation", (q) => q.quotation_number],
-    ["Ex-showroom", (q) => inr(num(q.base_price))],
-    ["Insurance", (q) => inr(num(q.insurance))],
-    ["RTO", (q) => inr(num(q.rto))],
-    ["Accessories & items", (q) => inr(num(q.accessories))],
-    ["Discount", (q) => inr(num(q.discount))],
-    ["On-road final price", (q) => inr(num(q.final_price)), true],
-    ["Loan amount", (q) => inr(num(q.loan_amount))],
-    ["Monthly EMI", (q) => (num(q.emi) > 0 ? `${inr(num(q.emi))} × ${q.loan_tenure}` : "—"), true],
+  const rows: [string, (opt: VehicleOptionData) => string, boolean?][] = [
+    ["Ex-showroom", (opt) => inr(opt.basePrice)],
+    ["Insurance", (opt) => inr(opt.insurance)],
+    ["RTO / Road Tax", (opt) => inr(opt.rto)],
+    ["Accessories & items", (opt) => inr(opt.accessories)],
+    ["Other charges", (opt) => inr(opt.otherCharges)],
+    ["Discount", (opt) => (opt.discount > 0 ? `− ${inr(opt.discount)}` : "—")],
+    ["On-road final price", (opt) => inr(opt.finalPrice), true],
+    ["Down payment", (opt) => inr(opt.downPayment)],
+    ["Loan amount", (opt) => inr(opt.loanAmount)],
+    ["Monthly EMI", (opt) => (opt.emi > 0 ? `${inr(opt.emi)} × ${opt.loanTenure}` : "—"), true],
   ];
-  const diff = num(b.final_price) - num(a.final_price);
+  const diff = b.finalPrice - a.finalPrice;
   return (
     <div className="space-y-2">
       <div className="overflow-x-auto rounded-xl border">
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
-              <th className="p-3 text-left font-medium text-muted-foreground"> </th>
-              <th className="p-3 text-left font-semibold">A · {vehicleOf(a)}</th>
-              <th className="p-3 text-left font-semibold">B · {vehicleOf(b)}</th>
+              <th className="p-3 text-left font-medium text-muted-foreground">Component</th>
+              <th className="p-3 text-left font-semibold">Option A · {a.name}</th>
+              <th className="p-3 text-left font-semibold">Option B · {b.name}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map(([label, f, strong]) => (
               <tr key={label} className="border-t">
                 <td className="p-3 text-muted-foreground">{label}</td>
-                <td className={`p-3 ${strong ? "font-semibold" : ""}`}>{f(a)}</td>
-                <td className={`p-3 ${strong ? "font-semibold" : ""}`}>{f(b)}</td>
+                <td className={`p-3 ${strong ? "font-semibold text-primary" : ""}`}>{f(a)}</td>
+                <td className={`p-3 ${strong ? "font-semibold text-primary" : ""}`}>{f(b)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       {diff !== 0 && (
-        <p className="text-sm">
-          Vehicle {diff > 0 ? "A" : "B"} is <strong>{inr(Math.abs(diff))}</strong> cheaper on-road.
+        <p className="text-sm text-muted-foreground">
+          {diff > 0 ? "Option A" : "Option B"} is <strong>{inr(Math.abs(diff))}</strong> lower on-road.
         </p>
       )}
+    </div>
+  );
+}
+
+/* ============================================================
+   PRINTABLE QUOTATION — rendered into a detached DOM node and
+   shown exclusively via @media print (see styles.css).
+   ============================================================ */
+
+interface PrintableQuotationsProps {
+  quotation: QuotationResponse;
+  customer: { full_name: string; phone: string; email?: string | null; address?: string | null; city?: string | null; state?: string | null };
+}
+
+function PrintableQuotations({ quotation: q, customer }: PrintableQuotationsProps) {
+  const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const { optA, optB, isComparison } = extractOptions(q);
+
+  const salesExec = q.sales_executive
+    ? `${q.sales_executive.full_name} (${q.sales_executive.email ?? ""})`
+    : "Sales Executive";
+
+  return (
+    <div id="print-quotation-content">
+      <div className="print-quotation-page">
+        {/* Header */}
+        <div className="print-header">
+          <div className="print-header-left">
+            <div className="print-company-name">VoiceQuote AI Dealership</div>
+            <div className="print-company-sub">Authorised Two-Wheeler Showroom</div>
+          </div>
+          <div className="print-header-right">
+            <div className="print-doc-label">{isComparison ? "COMPARISON QUOTATION" : "QUOTATION"}</div>
+            <div className="print-doc-number">{q.quotation_number}</div>
+          </div>
+        </div>
+
+        <div className="print-divider" />
+
+        {/* Meta row */}
+        <div className="print-meta-row">
+          <div>
+            <span className="print-label">Date</span>
+            <span className="print-value">{today}</span>
+          </div>
+          <div>
+            <span className="print-label">Valid Until</span>
+            <span className="print-value">
+              {q.expires_at ? new Date(q.expires_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+            </span>
+          </div>
+          <div>
+            <span className="print-label">Status</span>
+            <span className="print-value">{q.status}</span>
+          </div>
+        </div>
+
+        <div className="print-divider" />
+
+        {/* Customer Details */}
+        <div className="print-section" style={{ marginBottom: "8px" }}>
+          <div className="print-section-title">Customer Details</div>
+          <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+            <div><span className="print-label">Name</span><span className="print-value">{customer.full_name}</span></div>
+            <div><span className="print-label">Phone</span><span className="print-value">{customer.phone}</span></div>
+            {customer.email && <div><span className="print-label">Email</span><span className="print-value">{customer.email}</span></div>}
+            {(customer.address || customer.city) && (
+              <div>
+                <span className="print-label">Address</span>
+                <span className="print-value">{[customer.address, customer.city, customer.state].filter(Boolean).join(", ")}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="print-divider" />
+
+        {isComparison && optB ? (
+          <>
+            {/* Comparison Note */}
+            <div className="print-comparison-note">
+              <strong>Comparison Quotation:</strong> The vehicles below are alternative purchase options. Each option is independently calculated. Prices are not cumulative.
+            </div>
+
+            {/* Side-by-side Option A and Option B */}
+            <div className="print-two-col" style={{ gap: "16px", marginTop: "8px" }}>
+              {/* Option A */}
+              <div className="print-option-card">
+                <span className="print-option-badge">Option A</span>
+                <div className="print-vehicle-name">{optA.name}</div>
+                {optA.engineCc && (
+                  <div className="print-field">
+                    <span className="print-label">Specs</span>
+                    <span className="print-value">{[optA.engineCc ? `${optA.engineCc} cc` : "", optA.fuelType, optA.transmission].filter(Boolean).join(" · ")}</span>
+                  </div>
+                )}
+                {optA.offerTitle && (
+                  <div className="print-field">
+                    <span className="print-label">Offer</span>
+                    <span className="print-value">{optA.offerTitle}</span>
+                  </div>
+                )}
+
+                <table className="print-price-table" style={{ marginTop: "6px" }}>
+                  <tbody>
+                    <tr><td className="print-price-label">Ex-showroom</td><td className="print-price-value">{inr(optA.basePrice)}</td></tr>
+                    <tr><td className="print-price-label">Insurance</td><td className="print-price-value">{inr(optA.insurance)}</td></tr>
+                    <tr><td className="print-price-label">RTO / Road Tax</td><td className="print-price-value">{inr(optA.rto)}</td></tr>
+                    <tr><td className="print-price-label">Accessories &amp; Items</td><td className="print-price-value">{inr(optA.accessories)}</td></tr>
+                    {optA.otherCharges > 0 && <tr><td className="print-price-label">Other Charges</td><td className="print-price-value">{inr(optA.otherCharges)}</td></tr>}
+                    {optA.discount > 0 && <tr className="print-discount-row"><td className="print-price-label">Discount</td><td className="print-price-value">− {inr(optA.discount)}</td></tr>}
+                  </tbody>
+                  <tfoot>
+                    <tr className="print-total-row">
+                      <td className="print-price-label">On-Road Price</td>
+                      <td className="print-price-value print-total-value">{inr(optA.finalPrice)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+
+                {(optA.downPayment > 0 || optA.loanAmount > 0) && (
+                  <div className="print-finance-box" style={{ marginTop: "6px", padding: "6px 10px" }}>
+                    <div className="print-section-title" style={{ marginBottom: "4px" }}>Finance</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 8px", fontSize: "8pt" }}>
+                      <div><span className="print-label">Down Payment</span><span className="print-value">{inr(optA.downPayment)}</span></div>
+                      <div><span className="print-label">Loan Amount</span><span className="print-value">{inr(optA.loanAmount)}</span></div>
+                      {optA.emi > 0 && (
+                        <div style={{ gridColumn: "span 2" }}>
+                          <span className="print-label">Monthly EMI</span>
+                          <span className="print-value">{inr(optA.emi)} × {optA.loanTenure} mo</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Option B */}
+              <div className="print-option-card">
+                <span className="print-option-badge">Option B</span>
+                <div className="print-vehicle-name">{optB.name}</div>
+                {optB.engineCc && (
+                  <div className="print-field">
+                    <span className="print-label">Specs</span>
+                    <span className="print-value">{[optB.engineCc ? `${optB.engineCc} cc` : "", optB.fuelType, optB.transmission].filter(Boolean).join(" · ")}</span>
+                  </div>
+                )}
+                {optB.offerTitle && (
+                  <div className="print-field">
+                    <span className="print-label">Offer</span>
+                    <span className="print-value">{optB.offerTitle}</span>
+                  </div>
+                )}
+
+                <table className="print-price-table" style={{ marginTop: "6px" }}>
+                  <tbody>
+                    <tr><td className="print-price-label">Ex-showroom</td><td className="print-price-value">{inr(optB.basePrice)}</td></tr>
+                    <tr><td className="print-price-label">Insurance</td><td className="print-price-value">{inr(optB.insurance)}</td></tr>
+                    <tr><td className="print-price-label">RTO / Road Tax</td><td className="print-price-value">{inr(optB.rto)}</td></tr>
+                    <tr><td className="print-price-label">Accessories &amp; Items</td><td className="print-price-value">{inr(optB.accessories)}</td></tr>
+                    {optB.otherCharges > 0 && <tr><td className="print-price-label">Other Charges</td><td className="print-price-value">{inr(optB.otherCharges)}</td></tr>}
+                    {optB.discount > 0 && <tr className="print-discount-row"><td className="print-price-label">Discount</td><td className="print-price-value">− {inr(optB.discount)}</td></tr>}
+                  </tbody>
+                  <tfoot>
+                    <tr className="print-total-row">
+                      <td className="print-price-label">On-Road Price</td>
+                      <td className="print-price-value print-total-value">{inr(optB.finalPrice)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+
+                {(optB.downPayment > 0 || optB.loanAmount > 0) && (
+                  <div className="print-finance-box" style={{ marginTop: "6px", padding: "6px 10px" }}>
+                    <div className="print-section-title" style={{ marginBottom: "4px" }}>Finance</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 8px", fontSize: "8pt" }}>
+                      <div><span className="print-label">Down Payment</span><span className="print-value">{inr(optB.downPayment)}</span></div>
+                      <div><span className="print-label">Loan Amount</span><span className="print-value">{inr(optB.loanAmount)}</span></div>
+                      {optB.emi > 0 && (
+                        <div style={{ gridColumn: "span 2" }}>
+                          <span className="print-label">Monthly EMI</span>
+                          <span className="print-value">{inr(optB.emi)} × {optB.loanTenure} mo</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Single Vehicle Print Layout */
+          <>
+            <div className="print-section">
+              <div className="print-section-title">Vehicle</div>
+              <div className="print-vehicle-name">{optA.name}</div>
+              {q.variant && (
+                <div style={{ display: "flex", gap: "20px", marginTop: "4px" }}>
+                  {q.variant.fuel_type && <div className="print-field"><span className="print-label">Fuel</span><span className="print-value">{q.variant.fuel_type}</span></div>}
+                  {q.variant.transmission && <div className="print-field"><span className="print-label">Transmission</span><span className="print-value">{q.variant.transmission}</span></div>}
+                  {q.variant.engine_cc && <div className="print-field"><span className="print-label">Engine</span><span className="print-value">{q.variant.engine_cc} cc</span></div>}
+                  {q.offer && <div className="print-field"><span className="print-label">Offer</span><span className="print-value">{q.offer.title}</span></div>}
+                </div>
+              )}
+            </div>
+
+            <div className="print-divider" />
+
+            <div className="print-pricing-block">
+              <div className="print-section-title">Price Breakdown</div>
+              <table className="print-price-table">
+                <tbody>
+                  <tr><td className="print-price-label">Ex-showroom Price</td><td className="print-price-value">{inr(optA.basePrice)}</td></tr>
+                  <tr><td className="print-price-label">Insurance</td><td className="print-price-value">{inr(optA.insurance)}</td></tr>
+                  <tr><td className="print-price-label">RTO / Road Tax</td><td className="print-price-value">{inr(optA.rto)}</td></tr>
+                  <tr><td className="print-price-label">Accessories &amp; Items</td><td className="print-price-value">{inr(optA.accessories)}</td></tr>
+                  {optA.otherCharges > 0 && <tr><td className="print-price-label">Other Charges</td><td className="print-price-value">{inr(optA.otherCharges)}</td></tr>}
+                  {optA.discount > 0 && <tr className="print-discount-row"><td className="print-price-label">Discount</td><td className="print-price-value">− {inr(optA.discount)}</td></tr>}
+                  {(q.items ?? []).filter((it) => it.item_type !== "VEHICLE_OPTION").map((item) => (
+                    <tr key={item.id}>
+                      <td className="print-price-label print-label-indent">{item.item_name}{item.quantity > 1 ? ` ×${item.quantity}` : ""}</td>
+                      <td className="print-price-value">{inr(num(item.total_price))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="print-total-row">
+                    <td className="print-price-label">Total On-Road Price</td>
+                    <td className="print-price-value print-total-value">{inr(optA.finalPrice)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              {(optA.downPayment > 0 || optA.loanAmount > 0) && (
+                <div className="print-finance-box">
+                  <div className="print-section-title" style={{ marginBottom: "8px" }}>Finance Summary</div>
+                  <div className="print-finance-grid">
+                    <div><span className="print-label">Down Payment</span><span className="print-value">{inr(optA.downPayment)}</span></div>
+                    <div><span className="print-label">Loan Amount</span><span className="print-value">{inr(optA.loanAmount)}</span></div>
+                    {optA.emi > 0 && (
+                      <>
+                        <div><span className="print-label">Monthly EMI</span><span className="print-value">{inr(optA.emi)}</span></div>
+                        <div><span className="print-label">Tenure</span><span className="print-value">{optA.loanTenure} months</span></div>
+                      </>
+                    )}
+                    {optA.interestRate > 0 && (
+                      <div><span className="print-label">Interest Rate</span><span className="print-value">{optA.interestRate}% p.a.</span></div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        <div className="print-divider" />
+
+        {/* Terms */}
+        <div className="print-terms">
+          <div className="print-section-title">Terms &amp; Conditions</div>
+          <ul className="print-terms-list">
+            <li>This quotation is valid until the date mentioned above and is subject to availability.</li>
+            <li>Prices are indicative and may vary based on RTO registration, insurance charges, and applicable taxes.</li>
+            <li>Finance charges depend on the applicant's credit profile and lender approval.</li>
+            <li>This document is computer-generated and does not constitute a binding agreement.</li>
+          </ul>
+        </div>
+
+        {/* Footer */}
+        <div className="print-footer">
+          <div>
+            <span className="print-label">Prepared by</span>
+            <span className="print-value">{salesExec}</span>
+          </div>
+          <div className="print-footer-note">
+            Thank you for visiting our showroom. For queries, contact your sales executive.
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

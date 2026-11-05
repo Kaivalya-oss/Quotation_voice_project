@@ -153,6 +153,7 @@ export interface QuotationItemResponse {
   unit_price: string;
   quantity: number;
   total_price: string;
+  details_json?: Record<string, any> | null;
 }
 
 /**
@@ -161,9 +162,11 @@ export interface QuotationItemResponse {
 export interface QuotationCreate {
   customer_id: number;
   variant_id: number;
+  compare_variant_id?: number | null;
   accessory_ids?: number[];
   custom_items?: QuotationItemCreate[];
   offer_id?: number | null;
+  compare_offer_id?: number | null;
   down_payment: number | string;
   loan_tenure?: number;
   interest_rate?: number | string;
