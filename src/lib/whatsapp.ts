@@ -5,8 +5,7 @@ export interface WhatsAppMessageInput {
   quotationNumber: string;
   vehicle: string;
   onRoadPrice: number;
-  emi: number;
-  tenureMonths: number;
+  paymentMode: string;
   pdfUrl?: string | null;
   dealershipName: string;
   validUntil: string;
@@ -20,10 +19,8 @@ export function buildWhatsAppMessage(input: WhatsAppMessageInput) {
     "",
     `*Vehicle:* ${input.vehicle}`,
     `*On-road price:* ${inr(input.onRoadPrice)}`,
+    `*Payment mode:* ${input.paymentMode}`,
   ];
-  if (input.emi > 0) {
-    lines.push(`*EMI:* ${inr(input.emi)}/month for ${input.tenureMonths} months`);
-  }
   lines.push(`*Valid until:* ${new Date(input.validUntil).toLocaleDateString("en-IN")}`);
   if (input.pdfUrl) {
     lines.push("", `Detailed quotation PDF: ${input.pdfUrl}`);

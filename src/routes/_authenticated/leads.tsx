@@ -22,6 +22,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { LeadActionsPanel } from "@/components/leads/LeadActionsPanel";
 import { useAuth } from "@/hooks/use-auth";
 import { inr } from "@/lib/finance";
+import { PAYMENT_MODE_LABEL, quotationPriceLabel } from "@/lib/quotation-display";
 import {
   LEAD_PRIORITIES,
   LEAD_SOURCES,
@@ -402,7 +403,8 @@ function LeadDetail({ leadId, salespeople }: { leadId: number; salespeople: [num
                   {q.quotation_number}
                 </Link>
                 <span className="text-muted-foreground">{q.variant?.name}</span>
-                <span>{inr(Number(q.final_price))}</span>
+                <span>{quotationPriceLabel(q)}</span>
+                <span className="text-muted-foreground">{PAYMENT_MODE_LABEL[q.payment_mode]}</span>
                 <Badge variant="outline">{enumLabel(q.status)}</Badge>
               </li>
             ))}

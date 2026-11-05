@@ -48,6 +48,7 @@ import {
 } from "@/services/repository";
 import type { CustomerCreate, CustomerResponse } from "@/lib/customer-types";
 import type { QuotationResponse, QuotationItemResponse } from "@/lib/quotation-types";
+import { PAYMENT_MODE_LABEL, quotationPriceLabel } from "@/lib/quotation-display";
 
 export const Route = createFileRoute("/_authenticated/customers")({
   head: () => ({
@@ -474,7 +475,7 @@ function CustomersPage() {
                                 >
                                   {q.status}
                                 </Badge>
-                                <span className="font-semibold">{inr(q.final_price)}</span>
+                                <span className="font-semibold">{quotationPriceLabel(q)}</span>
                               </div>
                             </span>
                           </AccordionTrigger>
@@ -485,16 +486,8 @@ function CustomersPage() {
                                 {formatDate(q.created_at)}
                               </div>
                               <div>
-                                <span className="font-medium text-foreground">Down Payment: </span>
-                                {inr(q.down_payment)}
-                              </div>
-                              <div>
-                                <span className="font-medium text-foreground">Loan Tenure: </span>
-                                {q.loan_tenure} months
-                              </div>
-                              <div>
-                                <span className="font-medium text-foreground">Monthly EMI: </span>
-                                {inr(q.emi)}
+                                <span className="font-medium text-foreground">Payment Mode: </span>
+                                {PAYMENT_MODE_LABEL[q.payment_mode]}
                               </div>
                             </div>
                             {q.items && q.items.length > 0 && (

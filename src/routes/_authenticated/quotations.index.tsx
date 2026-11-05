@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { inr } from "@/lib/finance";
+import { PAYMENT_MODE_LABEL, quotationPrices } from "@/lib/quotation-display";
 import { downloadBlob } from "@/lib/pdf";
 import {
   listQuotations,
@@ -185,14 +186,16 @@ function QuotationsPage() {
 
   const exportCsv = () => {
     if (items.length === 0) return;
-    const header = ["Quotation", "Customer", "Vehicle", "Date", "Status", "Amount"];
+    const header = ["Quotation", "Customer", "Vehicle", "Date", "Status", "Payment Mode", "Amount"];
     const body = items.map((row) => [
       row.quotation_number,
       row.customer?.full_name ?? "",
       row.variant?.name ?? "",
       new Date(row.created_at).toLocaleDateString("en-IN"),
       row.status,
-      String(row.final_price),
+      PAYMENT_MODE_LABEL[row.payment_mode],
+      // A comparison's prices are alternatives, never one payable amount
+      quotationPrices(row).join(" vs "),
     ]);
     const csv = [header, ...body].map((line) => line.map((c) => `"${c}"`).join(",")).join("\n");
     downloadBlob(new Blob([csv], { type: "text/csv" }), "quotations.csv");
@@ -321,6 +324,9 @@ function QuotationsPage() {
                           >
                             {statusLabel(row.status)}
                           </Badge>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {PAYMENT_MODE_LABEL[row.payment_mode]}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right font-semibold">
                           {isComparison && optBPrice !== null ? (

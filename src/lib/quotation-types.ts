@@ -27,9 +27,6 @@ export const QUOTATION_STATUS_TRANSITIONS: Record<BackendQuotationStatus, Backen
   CANCELLED: [],
 };
 
-/** Max annual interest rate accepted by the backend. */
-export const MAX_INTEREST_RATE = 36;
-
 /**
  * Nested Customer representation in QuotationResponse
  */
@@ -159,17 +156,17 @@ export interface QuotationItemResponse {
 /**
  * Payload for POST /api/v1/quotations
  */
+export type PaymentMode = "CASH" | "FINANCE";
+
 export interface QuotationCreate {
   customer_id: number;
   variant_id: number;
-  compare_variant_id?: number | null;
+  compare_variant_id?: number | null | undefined;
   accessory_ids?: number[];
   custom_items?: QuotationItemCreate[];
   offer_id?: number | null;
-  compare_offer_id?: number | null;
-  down_payment: number | string;
-  loan_tenure?: number;
-  interest_rate?: number | string;
+  compare_offer_id?: number | null | undefined;
+  payment_mode: PaymentMode;
   notes?: string | null;
 }
 
@@ -198,14 +195,10 @@ export interface QuotationResponse {
   rto: string;
   accessories: string;
   discount: string;
+  /** Option A only when is_comparison is true; use the VEHICLE_OPTION items for prices. */
   final_price: string;
-
-  // Finance breakdown
-  down_payment: string;
-  loan_amount: string;
-  interest_rate: string;
-  loan_tenure: number;
-  emi: string;
+  payment_mode: PaymentMode;
+  is_comparison: boolean;
 
   status: BackendQuotationStatus;
   pdf_url?: string | null;

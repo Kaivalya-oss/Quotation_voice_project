@@ -63,9 +63,10 @@ import {
 } from "@/services/repository";
 import type { CustomerResponse } from "@/lib/customer-types";
 import type { VariantResponse } from "@/lib/vehicle-types";
+import { PAYMENT_MODE_LABEL } from "@/lib/quotation-display";
 import {
-  MAX_INTEREST_RATE,
   isRealWhatsAppDelivery,
+  type PaymentMode,
   type QuotationItemCreate,
   type QuotationResponse,
   type WhatsAppDispatchResponse,
@@ -252,9 +253,7 @@ function NewQuotationPage() {
   const [accessoryIds, setAccessoryIds] = useState<number[]>([]);
   const [customItems, setCustomItems] = useState<CustomItemDraft[]>([]);
   const [offerId, setOfferId] = useState<number | null>(null);
-  const [downPayment, setDownPayment] = useState("0");
-  const [loanTenure, setLoanTenure] = useState(36);
-  const [interestRate, setInterestRate] = useState("9.5");
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>("CASH");
   const [notes, setNotes] = useState("");
 
   const accessoriesQuery = useQuery({
@@ -402,12 +401,6 @@ function NewQuotationPage() {
       if (compareMode && vehicleB && vehicleB.variant.id === selectedVariant.id)
         return "Choose two different vehicles to compare.";
     }
-    if (s === 2) {
-      if (num(downPayment) < 0) return "Down payment cannot be negative.";
-      if (num(interestRate) < 0) return "Interest rate cannot be negative.";
-      if (num(interestRate) > MAX_INTEREST_RATE)
-        return `Interest rate cannot exceed ${MAX_INTEREST_RATE}% p.a.`;
-    }
     return null;
   };
 
@@ -438,9 +431,7 @@ function NewQuotationPage() {
     accessoryIds,
     customItems,
     offerId,
-    downPayment,
-    loanTenure,
-    interestRate,
+    paymentMode,
     notes,
   ]);
   useEffect(() => {
@@ -529,9 +520,7 @@ function NewQuotationPage() {
           custom_items: validCustomItems,
           offer_id: offerId,
           compare_offer_id: compareMode && vehicleB ? offerIdB : undefined,
-          down_payment: num(downPayment),
-          loan_tenure: loanTenure,
-          interest_rate: num(interestRate),
+          payment_mode: paymentMode,
           notes:
             [
               notes.trim(),
@@ -583,9 +572,7 @@ function NewQuotationPage() {
     setAccessoryIds([]);
     setCustomItems([]);
     setOfferId(null);
-    setDownPayment("0");
-    setLoanTenure(36);
-    setInterestRate("9.5");
+    setPaymentMode("CASH");
     setNotes("");
   };
 
@@ -1046,56 +1033,34 @@ function NewQuotationPage() {
               )}
               {compareMode && (
                 <p className="text-sm text-muted-foreground">
-                  Accessories, custom items and finance terms below apply to both vehicles so the
+                  Accessories, custom items and the payment mode apply to both vehicles so the
                   comparison is like for like.
                 </p>
               )}
 
               <div className="space-y-3 pt-2 border-t">
-                <Label className="text-base font-medium">Finance</Label>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="down_payment">Down payment (₹)</Label>
-                    <Input
-                      id="down_payment"
-                      type="number"
-                      min={0}
-                      value={downPayment}
-                      onChange={(e) => setDownPayment(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="loan_tenure">Loan tenure</Label>
-                    <Select
-                      value={String(loanTenure)}
-                      onValueChange={(v) => setLoanTenure(Number(v))}
+                <Label className="text-base font-medium" id="payment-mode-label">
+                  Payment mode
+                </Label>
+                <div
+                  className="grid gap-3 sm:grid-cols-2"
+                  role="radiogroup"
+                  aria-labelledby="payment-mode-label"
+                >
+                  {(["CASH", "FINANCE"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      role="radio"
+                      aria-checked={paymentMode === mode}
+                      onClick={() => setPaymentMode(mode)}
+                      className={`rounded-xl border p-4 text-left font-medium transition ${
+                        paymentMode === mode ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                      }`}
                     >
-                      <SelectTrigger id="loan_tenure">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">No loan (full payment)</SelectItem>
-                        {[12, 24, 36, 48, 60].map((m) => (
-                          <SelectItem key={m} value={String(m)}>
-                            {m} months
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="interest_rate">Interest rate (% p.a.)</Label>
-                    <Input
-                      id="interest_rate"
-                      type="number"
-                      step="0.1"
-                      min={0}
-                      max={MAX_INTEREST_RATE}
-                      value={interestRate}
-                      onChange={(e) => setInterestRate(e.target.value)}
-                      disabled={loanTenure === 0}
-                    />
-                  </div>
+                      {PAYMENT_MODE_LABEL[mode]}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -1175,18 +1140,13 @@ function NewQuotationPage() {
                     </li>
                   ))}
                   {!compareMode && <li>Offer: {selectedOffer ? selectedOffer.title : "None"}</li>}
-                  <li>
-                    Finance:{" "}
-                    {loanTenure > 0
-                      ? `${inr(num(downPayment))} down · ${loanTenure} months @ ${num(interestRate)}%`
-                      : `Full payment (${inr(num(downPayment))} down)`}
-                  </li>
+                  <li>Payment mode: {PAYMENT_MODE_LABEL[paymentMode]}</li>
                   {notes.trim() && <li>Notes: {notes.trim()}</li>}
                 </ul>
               </ReviewSection>
 
               <p className="text-sm text-muted-foreground rounded-xl border border-primary/20 bg-primary/5 p-4">
-                The final price, discount, loan amount, EMI, quotation number and expiry are
+                The final price, discount, quotation number and expiry are
                 calculated by the server when you create the quotation. A lead with status{" "}
                 <strong>New</strong> will be opened for this customer (or the open lead for this
                 vehicle reused).
@@ -1273,11 +1233,6 @@ interface VehicleOptionData {
   otherCharges: number;
   discount: number;
   finalPrice: number;
-  downPayment: number;
-  loanAmount: number;
-  interestRate: number;
-  loanTenure: number;
-  emi: number;
   offerTitle?: string | null;
 }
 
@@ -1321,11 +1276,6 @@ function extractOptions(q: QuotationResponse): {
     ),
     discount: num(snapA.discount ?? q.discount),
     finalPrice: num(snapA.final_price ?? vehicleItems[0]?.total_price ?? q.final_price),
-    downPayment: num(snapA.down_payment ?? q.down_payment),
-    loanAmount: num(snapA.loan_amount ?? q.loan_amount),
-    interestRate: num(snapA.interest_rate ?? q.interest_rate),
-    loanTenure: snapA.loan_tenure ?? q.loan_tenure,
-    emi: num(snapA.emi ?? q.emi),
     offerTitle: snapA.offer_title ?? q.offer?.title,
   };
 
@@ -1351,11 +1301,6 @@ function extractOptions(q: QuotationResponse): {
       otherCharges: num(snapB.other_charges ?? 0),
       discount: num(snapB.discount ?? 0),
       finalPrice: num(snapB.final_price ?? vehicleItems[1]?.total_price),
-      downPayment: num(snapB.down_payment ?? q.down_payment),
-      loanAmount: num(snapB.loan_amount ?? 0),
-      interestRate: num(snapB.interest_rate ?? q.interest_rate),
-      loanTenure: snapB.loan_tenure ?? q.loan_tenure,
-      emi: num(snapB.emi ?? 0),
       offerTitle: snapB.offer_title,
     };
   }
@@ -1476,17 +1421,18 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
               <div className="text-right">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Final price</p>
                 <p className="text-3xl font-bold text-primary">{inr(optA.finalPrice)}</p>
-                {optA.emi > 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    EMI {inr(optA.emi)}/month × {optA.loanTenure}
-                  </p>
-                )}
+                <p className="text-sm text-muted-foreground">
+                  Payment mode: {PAYMENT_MODE_LABEL[q.payment_mode]}
+                </p>
               </div>
             )}
             {isComparison && (
               <div className="text-right">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Valid until</p>
                 <p className="font-semibold">{q.expires_at ? new Date(q.expires_at).toLocaleDateString("en-IN") : "—"}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Payment mode: {PAYMENT_MODE_LABEL[q.payment_mode]}
+                </p>
               </div>
             )}
           </div>
@@ -1503,11 +1449,6 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
                   </div>
                   <div>
                     <p className="font-semibold text-base">{optA.name}</p>
-                    {optA.emi > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        EMI {inr(optA.emi)}/month × {optA.loanTenure}
-                      </p>
-                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs border-t pt-2">
                     <PriceCell label="Ex-showroom" value={optA.basePrice} />
@@ -1516,8 +1457,6 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
                     <PriceCell label="Accessories & items" value={optA.accessories} />
                     {optA.otherCharges > 0 && <PriceCell label="Other charges" value={optA.otherCharges} />}
                     {optA.discount > 0 && <PriceCell label="Discount" value={-optA.discount} />}
-                    <PriceCell label="Down payment" value={optA.downPayment} />
-                    <PriceCell label="Loan amount" value={optA.loanAmount} />
                   </div>
                 </div>
 
@@ -1529,11 +1468,6 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
                   </div>
                   <div>
                     <p className="font-semibold text-base">{optB.name}</p>
-                    {optB.emi > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        EMI {inr(optB.emi)}/month × {optB.loanTenure}
-                      </p>
-                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs border-t pt-2">
                     <PriceCell label="Ex-showroom" value={optB.basePrice} />
@@ -1542,8 +1476,6 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
                     <PriceCell label="Accessories & items" value={optB.accessories} />
                     {optB.otherCharges > 0 && <PriceCell label="Other charges" value={optB.otherCharges} />}
                     {optB.discount > 0 && <PriceCell label="Discount" value={-optB.discount} />}
-                    <PriceCell label="Down payment" value={optB.downPayment} />
-                    <PriceCell label="Loan amount" value={optB.loanAmount} />
                   </div>
                 </div>
               </div>
@@ -1564,8 +1496,6 @@ function IntakeResultView({ result, onNew }: { result: IntakeResult; onNew: () =
               <PriceCell label="RTO" value={q.rto} />
               <PriceCell label="Accessories & items" value={q.accessories} />
               <PriceCell label="Discount" value={q.discount} />
-              <PriceCell label="Down payment" value={q.down_payment} />
-              <PriceCell label="Loan amount" value={q.loan_amount} />
               <div>
                 <p className="text-xs text-muted-foreground">Valid until</p>
                 <p className="font-medium">
@@ -1907,9 +1837,6 @@ function ComparisonTable({
     ["Other charges", (opt) => inr(opt.otherCharges)],
     ["Discount", (opt) => (opt.discount > 0 ? `− ${inr(opt.discount)}` : "—")],
     ["On-road final price", (opt) => inr(opt.finalPrice), true],
-    ["Down payment", (opt) => inr(opt.downPayment)],
-    ["Loan amount", (opt) => inr(opt.loanAmount)],
-    ["Monthly EMI", (opt) => (opt.emi > 0 ? `${inr(opt.emi)} × ${opt.loanTenure}` : "—"), true],
   ];
   const diff = b.finalPrice - a.finalPrice;
   return (
@@ -1994,6 +1921,10 @@ function PrintableQuotations({ quotation: q, customer }: PrintableQuotationsProp
             <span className="print-label">Status</span>
             <span className="print-value">{q.status}</span>
           </div>
+          <div>
+            <span className="print-label">Payment Mode</span>
+            <span className="print-value">{PAYMENT_MODE_LABEL[q.payment_mode]}</span>
+          </div>
         </div>
 
         <div className="print-divider" />
@@ -2058,22 +1989,6 @@ function PrintableQuotations({ quotation: q, customer }: PrintableQuotationsProp
                     </tr>
                   </tfoot>
                 </table>
-
-                {(optA.downPayment > 0 || optA.loanAmount > 0) && (
-                  <div className="print-finance-box" style={{ marginTop: "6px", padding: "6px 10px" }}>
-                    <div className="print-section-title" style={{ marginBottom: "4px" }}>Finance</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 8px", fontSize: "8pt" }}>
-                      <div><span className="print-label">Down Payment</span><span className="print-value">{inr(optA.downPayment)}</span></div>
-                      <div><span className="print-label">Loan Amount</span><span className="print-value">{inr(optA.loanAmount)}</span></div>
-                      {optA.emi > 0 && (
-                        <div style={{ gridColumn: "span 2" }}>
-                          <span className="print-label">Monthly EMI</span>
-                          <span className="print-value">{inr(optA.emi)} × {optA.loanTenure} mo</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Option B */}
@@ -2109,22 +2024,6 @@ function PrintableQuotations({ quotation: q, customer }: PrintableQuotationsProp
                     </tr>
                   </tfoot>
                 </table>
-
-                {(optB.downPayment > 0 || optB.loanAmount > 0) && (
-                  <div className="print-finance-box" style={{ marginTop: "6px", padding: "6px 10px" }}>
-                    <div className="print-section-title" style={{ marginBottom: "4px" }}>Finance</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 8px", fontSize: "8pt" }}>
-                      <div><span className="print-label">Down Payment</span><span className="print-value">{inr(optB.downPayment)}</span></div>
-                      <div><span className="print-label">Loan Amount</span><span className="print-value">{inr(optB.loanAmount)}</span></div>
-                      {optB.emi > 0 && (
-                        <div style={{ gridColumn: "span 2" }}>
-                          <span className="print-label">Monthly EMI</span>
-                          <span className="print-value">{inr(optB.emi)} × {optB.loanTenure} mo</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </>
@@ -2170,25 +2069,6 @@ function PrintableQuotations({ quotation: q, customer }: PrintableQuotationsProp
                   </tr>
                 </tfoot>
               </table>
-
-              {(optA.downPayment > 0 || optA.loanAmount > 0) && (
-                <div className="print-finance-box">
-                  <div className="print-section-title" style={{ marginBottom: "8px" }}>Finance Summary</div>
-                  <div className="print-finance-grid">
-                    <div><span className="print-label">Down Payment</span><span className="print-value">{inr(optA.downPayment)}</span></div>
-                    <div><span className="print-label">Loan Amount</span><span className="print-value">{inr(optA.loanAmount)}</span></div>
-                    {optA.emi > 0 && (
-                      <>
-                        <div><span className="print-label">Monthly EMI</span><span className="print-value">{inr(optA.emi)}</span></div>
-                        <div><span className="print-label">Tenure</span><span className="print-value">{optA.loanTenure} months</span></div>
-                      </>
-                    )}
-                    {optA.interestRate > 0 && (
-                      <div><span className="print-label">Interest Rate</span><span className="print-value">{optA.interestRate}% p.a.</span></div>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </>
         )}
@@ -2201,7 +2081,9 @@ function PrintableQuotations({ quotation: q, customer }: PrintableQuotationsProp
           <ul className="print-terms-list">
             <li>This quotation is valid until the date mentioned above and is subject to availability.</li>
             <li>Prices are indicative and may vary based on RTO registration, insurance charges, and applicable taxes.</li>
-            <li>Finance charges depend on the applicant's credit profile and lender approval.</li>
+            {q.payment_mode === "FINANCE" && (
+              <li>Finance is subject to the applicant's credit profile and lender approval.</li>
+            )}
             <li>This document is computer-generated and does not constitute a binding agreement.</li>
           </ul>
         </div>

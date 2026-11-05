@@ -28,14 +28,7 @@ export interface QuotationPdfInput {
     discount: number;
     totalAmount: number;
   };
-  finance: {
-    downPayment: number;
-    loanAmount: number;
-    interestRate: number;
-    tenureMonths: number;
-    emi: number;
-    totalInterest: number;
-  };
+  paymentMode: string;
   executive: string;
   terms: string;
   bookingLink: string;
@@ -126,31 +119,10 @@ export async function buildQuotationPdf(input: QuotationPdfInput): Promise<Blob>
   doc.text(inr(input.pricing.totalAmount), width - margin, y, { align: "right" });
 
   y += 30;
-  doc.setFillColor(240, 245, 255);
-  doc.roundedRect(margin, y, width - margin * 2, 78, 8, 8, "F");
-  doc.setFont("helvetica", "bold").setFontSize(10).setTextColor(20, 24, 34);
-  doc.text("Finance summary", margin + 16, y + 20);
-  doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(...MUTED);
-  const finance: [string, string][] = [
-    ["Down payment", inr(input.finance.downPayment)],
-    ["Loan amount", inr(input.finance.loanAmount)],
-    ["Interest rate", `${input.finance.interestRate}% p.a.`],
-    ["Tenure", `${input.finance.tenureMonths} months`],
-    ["Monthly EMI", inr(input.finance.emi)],
-    ["Total interest", inr(input.finance.totalInterest)],
-  ];
-  finance.forEach(([label, value], i) => {
-    const col = i % 3;
-    const row = Math.floor(i / 3);
-    const x = margin + 16 + col * ((width - margin * 2 - 32) / 3);
-    doc.setTextColor(...MUTED);
-    doc.text(label, x, y + 40 + row * 24);
-    doc.setFont("helvetica", "bold").setTextColor(20, 24, 34);
-    doc.text(value, x, y + 52 + row * 24);
-    doc.setFont("helvetica", "normal");
-  });
+  doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(20, 24, 34);
+  doc.text(`Payment mode: ${input.paymentMode}`, margin, y);
 
-  y += 100;
+  y += 30;
 
   try {
     const qr = await QRCode.toDataURL(input.bookingLink, { margin: 0, width: 220 });
