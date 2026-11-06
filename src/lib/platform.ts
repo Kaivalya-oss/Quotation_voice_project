@@ -136,16 +136,6 @@ export async function cachedSetupStatus(): Promise<SetupStatus> {
 
 // ---- Accounts and showrooms ----
 
-export const registerShowroom = (body: {
-  showroom_name: string;
-  email: string;
-  password: string;
-  full_name: string;
-}) => api.post<PlatformTokens>(`${P}/showrooms/register`, body, { skipAuth: true });
-
-export const createShowroom = (showroom_name: string) =>
-  api.post<PlatformTokens>(`${P}/showrooms`, { showroom_name });
-
 export const platformLogin = (email: string, password: string) =>
   api.post<PlatformTokens>(`${P}/auth/login`, { email, password }, { skipAuth: true });
 

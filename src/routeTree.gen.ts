@@ -29,7 +29,6 @@ import { Route as AuthenticatedTestRidesRouteImport } from './routes/_authentica
 import { Route as AuthenticatedVehiclesRouteImport } from './routes/_authenticated/vehicles'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ShowroomInviteRouteImport } from './routes/showroom.invite'
-import { Route as ShowroomRegisterRouteImport } from './routes/showroom.register'
 import { Route as AuthenticatedQuotationsIndexRouteImport } from './routes/_authenticated/quotations.index'
 import { Route as AuthenticatedQuotationsNewRouteImport } from './routes/_authenticated/quotations.new'
 import { Route as AuthenticatedShowroomDatabaseRouteImport } from './routes/_authenticated/showroom.database'
@@ -135,11 +134,6 @@ const ShowroomInviteRoute = ShowroomInviteRouteImport.update({
   path: '/showroom/invite',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ShowroomRegisterRoute = ShowroomRegisterRouteImport.update({
-  id: '/showroom/register',
-  path: '/showroom/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedQuotationsIndexRoute =
   AuthenticatedQuotationsIndexRouteImport.update({
     id: '/quotations/',
@@ -191,7 +185,6 @@ export interface FileRoutesByFullPath {
   '/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/showroom/invite': typeof ShowroomInviteRoute
-  '/showroom/register': typeof ShowroomRegisterRoute
   '/quotations/new': typeof AuthenticatedQuotationsNewRoute
   '/showroom/database': typeof AuthenticatedShowroomDatabaseRoute
   '/showroom/select': typeof AuthenticatedShowroomSelectRoute
@@ -218,7 +211,6 @@ export interface FileRoutesByTo {
   '/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/showroom/invite': typeof ShowroomInviteRoute
-  '/showroom/register': typeof ShowroomRegisterRoute
   '/quotations/new': typeof AuthenticatedQuotationsNewRoute
   '/showroom/database': typeof AuthenticatedShowroomDatabaseRoute
   '/showroom/select': typeof AuthenticatedShowroomSelectRoute
@@ -247,7 +239,6 @@ export interface FileRoutesById {
   '/_authenticated/vehicles': typeof AuthenticatedVehiclesRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/showroom/invite': typeof ShowroomInviteRoute
-  '/showroom/register': typeof ShowroomRegisterRoute
   '/_authenticated/quotations/new': typeof AuthenticatedQuotationsNewRoute
   '/_authenticated/showroom/database': typeof AuthenticatedShowroomDatabaseRoute
   '/_authenticated/showroom/select': typeof AuthenticatedShowroomSelectRoute
@@ -276,7 +267,6 @@ export interface FileRouteTypes {
     | '/vehicles'
     | '/api/transcribe'
     | '/showroom/invite'
-    | '/showroom/register'
     | '/quotations/new'
     | '/showroom/database'
     | '/showroom/select'
@@ -303,7 +293,6 @@ export interface FileRouteTypes {
     | '/vehicles'
     | '/api/transcribe'
     | '/showroom/invite'
-    | '/showroom/register'
     | '/quotations/new'
     | '/showroom/database'
     | '/showroom/select'
@@ -331,7 +320,6 @@ export interface FileRouteTypes {
     | '/_authenticated/vehicles'
     | '/api/transcribe'
     | '/showroom/invite'
-    | '/showroom/register'
     | '/_authenticated/quotations/new'
     | '/_authenticated/showroom/database'
     | '/_authenticated/showroom/select'
@@ -348,7 +336,6 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   ShowroomInviteRoute: typeof ShowroomInviteRoute
-  ShowroomRegisterRoute: typeof ShowroomRegisterRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -493,13 +480,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShowroomInviteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/showroom/register': {
-      id: '/showroom/register'
-      path: '/showroom/register'
-      fullPath: '/showroom/register'
-      preLoaderRoute: typeof ShowroomRegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated/quotations/': {
       id: '/_authenticated/quotations/'
       path: '/quotations'
@@ -590,7 +570,6 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   ShowroomInviteRoute: ShowroomInviteRoute,
-  ShowroomRegisterRoute: ShowroomRegisterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

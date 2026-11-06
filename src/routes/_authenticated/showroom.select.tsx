@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2 } from "lucide-react";
@@ -6,16 +6,13 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/app/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authQueryKey } from "@/hooks/use-auth";
 import { enumLabel } from "@/lib/lead-types";
 import {
   MULTI_TENANT,
   TENANT_ROLE_LABEL,
-  createShowroom,
   getMe,
   selectShowroom,
   storeSession,
@@ -33,7 +30,6 @@ function SelectShowroomPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const meQuery = useQuery({ queryKey: ["platform-me"], queryFn: getMe });
-  const [name, setName] = useState("");
   const inFlight = useRef(false);
 
   const afterSwitch = async (tokens: Parameters<typeof storeSession>[0]) => {
@@ -46,14 +42,6 @@ function SelectShowroomPage() {
 
   const select = useMutation({
     mutationFn: selectShowroom,
-    onSuccess: afterSwitch,
-    onError: (err: Error) => toast.error(err.message),
-    onSettled: () => {
-      inFlight.current = false;
-    },
-  });
-  const create = useMutation({
-    mutationFn: createShowroom,
     onSuccess: afterSwitch,
     onError: (err: Error) => toast.error(err.message),
     onSettled: () => {
@@ -84,8 +72,7 @@ function SelectShowroomPage() {
       ) : memberships.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            You are not a member of any showroom yet. Ask an Owner for an invitation, or register
-            one below.
+            You are not a member of any showroom yet. Ask your showroom's Owner for an invitation.
           </CardContent>
         </Card>
       ) : (
@@ -124,37 +111,6 @@ function SelectShowroomPage() {
           })}
         </div>
       )}
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Register another showroom</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form
-            className="flex flex-wrap items-end gap-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              run(() => create.mutate(name.trim()));
-            }}
-          >
-            <div className="space-y-2 grow">
-              <Label htmlFor="new-showroom">Showroom name</Label>
-              <Input
-                id="new-showroom"
-                required
-                minLength={2}
-                maxLength={150}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <Button type="submit" variant="outline" disabled={create.isPending}>
-              {create.isPending && <Loader2 className="size-4 animate-spin" />}
-              Register
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
     </div>
   );
 }

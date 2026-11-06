@@ -94,13 +94,17 @@ function LoginPage() {
       subtitle="Sign in to your sales workspace."
       footer={
         <>
-          New to Voice Quote?{" "}
-          <Link
-            to={MULTI_TENANT ? "/showroom/register" : "/register"}
-            className="font-medium text-primary hover:underline"
-          >
-            {MULTI_TENANT ? "Register your showroom" : "Create an account"}
-          </Link>
+          {MULTI_TENANT ? (
+            // Showrooms are created by VoiceQuote, and people join by invitation.
+            "New to Voice Quote? Your showroom's Owner can invite you."
+          ) : (
+            <>
+              New to Voice Quote?{" "}
+              <Link to="/register" className="font-medium text-primary hover:underline">
+                Create an account
+              </Link>
+            </>
+          )}
         </>
       }
     >
